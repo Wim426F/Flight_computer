@@ -17,8 +17,8 @@ public:
   int setChannel(int channel = 1);
   int setTxPower(int power = 8);
   int setBaudRate(int baud = 4800);
-  rc_status_t transmit();
-  rc_status_t receive();
+  rc_status_t sendBytes();
+  rc_status_t parseIncomingBytes();
 };
 
 

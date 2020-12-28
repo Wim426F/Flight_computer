@@ -4,34 +4,42 @@
    Date Started:  24/08/2019
  */
 #include <EEPROM.h>
-#include <TeensyThreads.h> 
-#include "SD_t3.h"
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <TeensyThreads.h>
 
 #include <sensors.h>
 #include <communication.h>
 #include <flight_controls.h>
 #include <globals.h>
 
-// OLED display
+#ifdef TARGET_TEENSY35
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET); //Declaring the display name (display)
-MPU6050 mpu6050(Wire);
-SoftwareSerial gpsSerial(35, 36); // (rx,tx)
+
+Adafruit_MPU6050 mpu;
 Adafruit_BMP280 bmp;
+#endif
+
+#ifdef TARGET_IMXRT1062
+RF24 radio(7, 8);
+ICP101xx icp;
+ICM_20948_I2C icm;
+#endif
+
 ControlSystem ctrlSys;
 RadioCommunication rc;
 
 // hc12 parameters are stored in eeprom
-const uint8_t ch_state_adrr = 0;
-const uint8_t bd_state_adrr = 1;
-const uint8_t tp_state_adrr = 2;
-uint8_t channel_state = EEPROM.read(ch_state_adrr);
-uint8_t baud_state = EEPROM.read(bd_state_adrr);
-uint8_t txpower_state = EEPROM.read(tp_state_adrr);
+#define CH_STATE_ADRR 0
+#define BD_STATE_ADRR 1
+#define TP_STATE_ADRR 2
+uint8_t channel_state = EEPROM.read(CH_STATE_ADRR);
+uint8_t baud_state = EEPROM.read(BD_STATE_ADRR);
+uint8_t txpower_state = EEPROM.read(TP_STATE_ADRR);
 
 const long interval1 = 10;
 const long interval2 = 100;
@@ -48,39 +56,18 @@ float groundlvl_pressure = 0;
 float bmp_pressure = 0;
 float bmp_altitude = 0;
 
-const uint8_t hc_set = 39;
-const uint8_t button1 = 33;
-const uint8_t button2 = 34;
-const uint8_t servo = 3;
-const uint8_t buzzer = 2;
-const uint8_t led_red = 11;
-const uint8_t led_green = 12;
-const uint8_t gimbal_down = 29;
-const uint8_t gimbal_up = 30;
-const uint8_t sonar_trigg_pin = 22;
-const uint8_t sonar_echo_pin = 10;
-
-//ESC's
-const uint8_t esc1_pin = 6;
-const uint8_t esc2_pin = 14;
-const uint8_t esc3_pin = 7;
-const uint8_t esc4_pin = 8;
-const uint8_t esc5_pin = 4;
-const uint8_t esc6_pin = 5;
-
-uint8_t rc_throttle = 0;
-uint8_t rc_yaw = 0;
-uint8_t rc_pitch = 0;
-uint8_t rc_roll = 0;
+uint16_t rc_throttle = 0;
+uint16_t rc_yaw = 0;
+uint16_t rc_pitch = 0;
+uint16_t rc_roll = 0;
 uint8_t rc_button1 = 0;
 uint8_t rc_button2 = 0;
 uint8_t rc_button3 = 0;
 uint8_t rc_button4 = 0;
 
-
 void thread2()
 {
-  for(;;)
+  for (;;)
   {
     ctrlSys.steer();
     threads.yield();
@@ -89,11 +76,13 @@ void thread2()
 
 void setup()
 {
+  threads.addThread(thread2);
+  threads.start();
   ctrlSys.initialize();
-  //rc.config(1, 4800);
   sensor_status_t sensors_init();
   pwb_status_t pwb_init();
-  
+
+#ifdef TARGET_TEENSY35
   // OLED display
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
@@ -105,68 +94,61 @@ void setup()
   display.setTextSize(1);
   display.println("Hexacopter Drone");
   display.display();
-  delay(1000);
 
-  pinMode(button1, INPUT_PULLUP);
-  pinMode(button2, INPUT_PULLUP);
-  
-  pinMode(buzzer, OUTPUT);
-  pinMode(led_red, OUTPUT);
-  pinMode(led_green, OUTPUT);
-  pinMode(gimbal_down, OUTPUT); // Camera
-  pinMode(gimbal_up, OUTPUT);
-  pinMode(hc_set, OUTPUT);
-  digitalWrite(hc_set, HIGH);
+  gps.begin(115200);
 
-  HC12.begin(2400);
-  //HC12.begin((rc_baudrate[baud_state])); // begin at speed last saved in eeprom
-  gpsSerial.begin(115200); 
-  Serial.begin(115200); // Serial port to computer
-  threads.addThread(thread2);
-  threads.start();
-  //threads.setTimeSlice(thread_id, 1); // for thread2 
-  //EEPROM.write(bd_state_adrr, 2);
-  rc.setBaudRate(4800);
-  rc.setChannel(1);
-} 
+  pinMode(BUTTON1, INPUT_PULLUP);
+  pinMode(BUTTON2, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(HC12_COMMAND_MODE, OUTPUT);
+  //EEPROM.write(BD_STATE_ADRR, 2);
+  HC12.begin((rc_baudrate[baud_state])); // begin at speed last saved in eeprom
+  while (!HC12)
+    Serial.begin(115200); // Serial port to computer
+
+  digitalWrite(HC12_COMMAND_MODE, HIGH); // don't enter command mode, high
+#endif
+  pinMode(GIMBAL_DOWN, OUTPUT);
+  pinMode(GIMBAL_UP, OUTPUT);
+}
 
 void loop()
 {
-  if (HC12.available() > 0)
-  {
-    rc.receive();
-  }
+  rc.parseIncomingBytes();
+
   // 10 ms
   if (since_int1 > interval1)
   {
     since_int1 -= interval1;
-    
   }
   // 100 ms
   if (since_int2 > interval2)
   {
     since_int2 -= interval2;
-    
+    Serial.println(" ");
+    //Serial.print();
+    Serial.print(" ");
+    //Serial.print();
+    Serial.print(" ");
+    //Serial.print();
+    Serial.println(" ");
   }
-  
+
   // 500 ms
   if (since_int3 > interval3)
   {
     since_int3 -= interval3;
-    
   }
   // 1000 ms
   if (since_int4 > interval4)
   {
     since_int4 -= interval4;
-    
   }
   // 5000 ms
   if (since_int5 > interval5)
   {
     since_int5 -= interval5;
-    
   }
-
 }
-

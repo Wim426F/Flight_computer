@@ -6,24 +6,28 @@ using namespace std;
 
 sensor_status_t sensors_init()
 {
+    #ifdef TARGET_TEENSY35
     /* I2C */
     Wire.setClock(400000);
-    Wire.begin(0x02); // Set address of this computer
+    Wire.begin(0x02); // Set address of this device
     bmp.begin(0x76);
-    mpu6050.begin(); // Address 0x68
-    mpu6050.calcGyroOffsets(true);
+    bmp.begin(); // Address 0x68
     groundlvl_pressure = bmp.readPressure() / 100; // set altitude to zero relative to air pressure
 
-    pinMode(sonar_trigg_pin, OUTPUT); // Trigger pin for HC-SR04
-    pinMode(sonar_echo_pin, INPUT);     // Echo pin for HC-SR04
+    pinMode(SONAR_TRIGGER, OUTPUT); // Trigger pin for HC-SR04
+    pinMode(SONAR_ECHO, INPUT);     // Echo pin for HC-SR04
+    #endif
+
     return SN_INIT_SUCCES;
 }
 
 sensor_status_t sensors_update(string sensor)
 {
-    mpu6050.update();
+    #ifdef TARGET_TEENSY35
     bmp_pressure = bmp.readPressure() / 100;
     bmp_altitude = bmp.readAltitude(groundlvl_pressure);
+    #endif
+    
     return SN_UPDATE_SUCCES;
 }
 

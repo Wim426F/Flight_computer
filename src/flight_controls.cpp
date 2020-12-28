@@ -5,7 +5,7 @@
 #include <flight_controls.h>
 #include <globals.h>
 
-float freq = 50;
+float freq = 50; //Hz
 
 uint16_t left_front = 0;  // M2: CW
 uint16_t left_side = 0;   // M3: CCW
@@ -14,22 +14,22 @@ uint16_t right_front = 0; // M1: CCW
 uint16_t right_side = 0;  // M6: CW
 uint16_t right_rear = 0;  // M5: CCW
 
-uint8_t correction_multiplier = 50;  // max % power shifted to other side 
+uint8_t steering_multiplier = 50;  // max % power shifted to other side 
 
 void ControlSystem::initialize()
 {
   //Configure ESC's
   analogWriteResolution(16);            // 16 bit (0 - 65535)
-  analogWriteFrequency(esc1_pin, freq); // FTM0 timer, pin 5, 6
-  analogWriteFrequency(esc5_pin, freq); // FTM1 timer, pin 4
-  analogWriteFrequency(esc2_pin, freq); // FTM3 timer, pin 7, 8 ,14
+  analogWriteFrequency(MOTOR1, freq); // FTM0 timer, pin 5, 6
+  analogWriteFrequency(MOTOR5, freq); // FTM1 timer, pin 4
+  analogWriteFrequency(MOTOR2, freq); // FTM3 timer, pin 7, 8 ,14
 
-  pinMode(esc1_pin, OUTPUT);
-  pinMode(esc2_pin, OUTPUT);
-  pinMode(esc3_pin, OUTPUT);
-  pinMode(esc4_pin, OUTPUT);
-  pinMode(esc5_pin, OUTPUT);
-  pinMode(esc6_pin, OUTPUT);
+  pinMode(MOTOR1, OUTPUT);
+  pinMode(MOTOR2, OUTPUT);
+  pinMode(MOTOR3, OUTPUT);
+  pinMode(MOTOR4, OUTPUT);
+  pinMode(MOTOR5, OUTPUT);
+  pinMode(MOTOR6, OUTPUT);
   return;
 }
 
@@ -40,7 +40,7 @@ void ControlSystem::calibrate()
 void ControlSystem::steer()
 {
   uint16_t throttle = map(rc_throttle, 0, 255, 2600, 6600);
-  correction_multiplier /= 4;
+  steering_multiplier /= 4;
 
   left_front = throttle;
   left_side = throttle;
@@ -62,12 +62,12 @@ void ControlSystem::steer()
   Serial.println(right_rear);
   Serial.println(" ");
 */
-  analogWrite(esc1_pin, right_front);
-  analogWrite(esc2_pin, left_front);
-  analogWrite(esc3_pin, left_side);
-  analogWrite(esc4_pin, left_rear);
-  analogWrite(esc5_pin, right_rear);
-  analogWrite(esc6_pin, right_side);
+  analogWrite(MOTOR1, right_front);
+  analogWrite(MOTOR2, left_front);
+  analogWrite(MOTOR3, left_side);
+  analogWrite(MOTOR4, left_rear);
+  analogWrite(MOTOR5, right_rear);
+  analogWrite(MOTOR6, right_side);
 }
 
 int ControlSystem::pitch_correction()
@@ -86,7 +86,7 @@ int ControlSystem::pitch_correction()
   {
     if (pitch > 1)
     {
-      correction = map(pitch_forward, 0, 129, 0, (40 * correction_multiplier)); // 400 = 10%
+      correction = map(pitch_forward, 0, 129, 0, (40 * steering_multiplier)); // 400 = 10%
       left_front -= correction;
       right_front -= correction;
       left_rear += correction;
@@ -94,7 +94,7 @@ int ControlSystem::pitch_correction()
     }
     if (pitch < 1)
     {
-      correction = map(pitch_backwards, 0, 129, 0, (40 * correction_multiplier)); // 400 = 10%
+      correction = map(pitch_backwards, 0, 129, 0, (40 * steering_multiplier)); // 400 = 10%
       
       left_front += correction;
       right_front += correction;
@@ -125,8 +125,8 @@ int ControlSystem::roll_correction()
   {
     if (roll > 1)
     {
-      correction = map(roll_right, 0, 128, 0, (40 * correction_multiplier));
-      correction_corners = map(roll_right, 0, 128, 0, (30 * correction_multiplier));
+      correction = map(roll_right, 0, 128, 0, (40 * steering_multiplier));
+      correction_corners = map(roll_right, 0, 128, 0, (30 * steering_multiplier));
       left_side += correction;
       left_front += correction_corners;
       left_rear += correction_corners;
@@ -136,8 +136,8 @@ int ControlSystem::roll_correction()
     }
     if (roll < 1)
     {
-      correction = map(roll_left, 0, 128, 0, (40 * correction_multiplier));
-      correction_corners = map(roll_left, 0, 128, 0, (30 * correction_multiplier));
+      correction = map(roll_left, 0, 128, 0, (40 * steering_multiplier));
+      correction_corners = map(roll_left, 0, 128, 0, (30 * steering_multiplier));
       left_side -= correction;
       left_front -= correction_corners;
       left_rear -= correction_corners;
