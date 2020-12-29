@@ -4,11 +4,11 @@
 #include <Arduino.h>
 //#include <SD.h>
 
-#ifdef TARGET_IMXRT1062
+#ifdef TARGET_FCU1062
 #include <ICM_20948.h>
 #include <icp101xx.h>
 #include <RF24.h>
-#include "SparkFun_Ublox_Arduino_Library.h"
+#include <SparkFun_Ublox_Arduino_Library.h>
 
 extern ICM_20948_I2C icm;
 extern ICP101xx icp;

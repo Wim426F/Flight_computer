@@ -24,7 +24,7 @@ Adafruit_MPU6050 mpu;
 Adafruit_BMP280 bmp;
 #endif
 
-#ifdef TARGET_IMXRT1062
+#ifdef TARGET_FCU1062
 RF24 radio(7, 8);
 ICP101xx icp;
 ICM_20948_I2C icm;
