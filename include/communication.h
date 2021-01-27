@@ -21,5 +21,9 @@ public:
   rc_status_t parseIncomingBytes();
 };
 
+extern const float rc_txpower[];
+extern const uint32_t rc_baudrate[];
+
+
 
 #endif
