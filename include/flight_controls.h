@@ -2,12 +2,13 @@
 #define FLIGHT_CONTROLS_H_
 
 
-void init_controller();
-void calibrate();
-void control_loop();
+void initController();
+void calibrateAngles();
+void mainControl();
+void enableWaypoint(float longitude, float latitude, float altitude);
 
 extern bool hold_position;
 extern float hold_altitude;
-void enableWaypoint(float longitude, float latitude, float altitude);
+
 
 #endif

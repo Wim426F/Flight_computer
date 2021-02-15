@@ -11,6 +11,23 @@
 #include <RF24.h>
 #include <SparkFun_Ublox_Arduino_Library.h>
 
+/* EEPROM Adresses */
+#define CH_STATE_ADDR 0
+#define BD_STATE_ADDR 1
+#define TP_STATE_ADDR 2
+#define OFFSET_X_ADDR 10
+#define OFFSET_Y_ADDR 20
+#define OFFSET_Z_ADDR 30
+
+#ifdef TARGET_TEENSY40
+#define MOTOR1 6
+#define MOTOR2 14
+#define MOTOR3 7
+#define MOTOR4 8
+#define MOTOR5 4
+#define MOTOR6 5
+#endif
+
 #ifdef TARGET_FCU1062
 
 extern ICM_20948_I2C icm;
@@ -33,16 +50,19 @@ extern RF24 radio;
 #endif
 
 #ifdef TARGET_TEENSY35
-#include <Adafruit_MPU6050.h>
 #include <MPU6050_tockn.h>
 #include <Adafruit_BMP280.h>
 
+extern Adafruit_BMP280 bmp;
+extern MPU6050 mpu6050;
+
 #define HC12 Serial4
 #define gps Serial5
+
 // GPIO
 #define HC12_COMMAND_MODE 39
-#define BUTTON1 33
-#define BUTTON2 34
+#define BUTTON1 35
+#define BUTTON2 36
 #define PWM_PIN 3
 #define BUZZER 2
 #define IMU_INTR 17
@@ -56,19 +76,14 @@ extern RF24 radio;
 #define MOTOR4 8
 #define MOTOR5 4
 #define MOTOR6 5
-
-extern Adafruit_MPU6050 mpu;
-extern Adafruit_BMP280 bmp;
-
-extern float abs_airpressure;
-extern float relative_altitude;
 #endif
 
 extern double elapsed_time, current_time, previous_time;
-
 extern float groundlvl_pressure;
-extern uint8_t steering_multiplier;
+extern float abs_airpressure;
+extern float relative_altitude;
 
+/* Transmitter Variables */
 extern uint16_t rc_throttle;
 extern uint16_t rc_yaw;
 extern uint16_t rc_pitch;
@@ -78,14 +93,26 @@ extern uint8_t rc_button2;
 extern uint8_t rc_button3;
 extern uint8_t rc_button4;
 
-extern float accX;
-extern float accY;
-extern float accZ;
-extern float gyrX;
-extern float gyrY;
-extern float gyrZ;
-extern float magX;
-extern float magY;
-extern float magZ;
+/* Powerboard Variables */
+extern float motor1_amps;
+extern float motor2_amps;
+extern float battery_amps;
+extern float battery_temp;
+extern float battery_voltage;
+
+extern uint16_t left_front;  // M2: CW
+extern uint16_t left_side;   // M3: CCW
+extern uint16_t left_rear;   // M4: CW
+extern uint16_t right_front; // M1: CCW
+extern uint16_t right_side;  // M6: CW
+extern uint16_t right_rear;  // M5: CCW
+
+extern float total_angle_x;
+extern float total_angle_y;
+extern float total_angle_z;
+
+extern float acc_x, acc_y, acc_z;
+extern float gyr_x, gyr_y, gyr_z;
+extern float mag_x, mag_y, mag_z;
 
 #endif

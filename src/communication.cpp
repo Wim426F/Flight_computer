@@ -151,9 +151,9 @@ rc_status_t RadioCommunication::parseIncomingBytes()
         {
           setBaudRate(rc_baudrate[(packet[3])]);
         }
-        if (packet[4] != 0) // steering offset %
+        if (packet[4] != 0) 
         {
-          steering_multiplier = packet[4];
+          
         }
         return RECEIVE_SUCCES;
       }
