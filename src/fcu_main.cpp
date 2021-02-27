@@ -6,19 +6,20 @@
 #include <globals.h>
 #include <communication.h>
 #include <flight_controls.h>
+#include <blheli_6way.h>
 
 #ifdef TARGET_TEENSY35
+#include <InternalTemperature.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define SCB_AIRCR (*(volatile uint32_t *)0xE000ED0C) // Application Interrupt and Reset Control location
-#define PWB_ADDR_IIC 1                               // Powerboard address
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 MPU6050 mpu6050(Wire);
 Adafruit_BMP280 bmp;
-#define PWB_ADDR_IIC 1
 
 // receiver parameters are stored in eeprom
 uint8_t channel_state = EEPROM.read(CH_STATE_ADDR);
@@ -32,6 +33,7 @@ ICP101xx icp;      // Barometer
 ICM_20948_I2C icm; // 9DOF Motion Sensor
 ICM_20948_SPI icm_spi;
 RadioCommunication rc;
+BlHeli6Way BlHeli;
 
 float relative_altitude = 0;
 float abs_airpressure = 0;
@@ -50,17 +52,8 @@ uint8_t rc_button2 = 0;
 uint8_t rc_button3 = 0;
 uint8_t rc_button4 = 0;
 
-/* Powerboard Variables */
-byte pwb_data[21];
-float motor1_amps = 0;
-float motor2_amps = 0;
-float battery_amps = 0;
-float battery_temp = 0;
-float battery_voltage = 0;
-byte pwb_status = 0;
-
-const long interval1 = 10;
-const long interval2 = 100;
+const long interval1 = 1; //mpu6050 sampling rate
+const long interval2 = 1000;
 const long interval3 = 500;
 const long interval4 = 1000;
 const long interval5 = 5000;
@@ -69,8 +62,11 @@ elapsedMillis since_int2;
 elapsedMillis since_int3;
 elapsedMillis since_int4;
 elapsedMillis since_int5;
+long int time = 0;
+long int prev_time = 0;
 
-void fetchPwb();
+long SERIAL_BAUDRATE = 38400;
+bool fcu_configmode = false;
 
 void getScaledAgmt(ICM_20948_AGMT_t agmt)
 {
@@ -108,15 +104,17 @@ void setup()
   display.println("Hexacopter Drone");
   display.display();
 
+  InternalTemperature.begin(TEMPERATURE_NO_ADC_SETTING_CHANGES);
+
   bmp.begin(0x76);
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,  /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X16, /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16, /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16    /* Filtering. */
   );
+
   mpu6050.begin();
   //mpu6050.calcGyroOffsets(true);
-
   pinMode(BUTTON1, INPUT_PULLUP);
   pinMode(BUTTON2, INPUT_PULLUP);
   pinMode(BUZZER, OUTPUT);
@@ -125,10 +123,11 @@ void setup()
   pinMode(HC12_COMMAND_MODE, OUTPUT);
 
   HC12.begin((rc_baudrate[baud_state])); // begin at speed last saved in eeprom
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUDRATE);
   digitalWrite(HC12_COMMAND_MODE, HIGH); // don't enter command mode, high
   gndlvl_airpressure = bmp.readPressure();
   initController();
+
 #elif defined(TARGET_FCU1062)
 
   Wire.setClock(1000000); // 1MHz
@@ -197,159 +196,188 @@ void setup()
 
 void loop()
 {
-  if (Serial.available())
-  {
-    String input;
-    if (isDigit(Serial.peek()))
-      rc_throttle = Serial.parseInt();
-    else
-      input = Serial.readString();
+  bool button1_state = digitalRead(BUTTON1);
+  bool button2_state = digitalRead(BUTTON2);
+  if (button1_state == LOW || button2_state == LOW)
+    delay(100);
 
-    if (input == "reboot")
-      _softRestart();
-    if (input == "calibrate")
-      calibrateAngles();
+  if (button1_state == LOW)
+  {
+    calibrateAngles();
   }
 
-  if (digitalRead(BUTTON1) == LOW)
-    calibrateAngles();
-  if (digitalRead(BUTTON2) == LOW)
-    _softRestart();
+  /* Configuration Modus */
+  if (button1_state == LOW && button2_state == LOW && fcu_configmode == false)
+  {
+    Serial.println("Config Mode enabled!");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("Config Mode");
+    fcu_configmode = true;
+  }
+
+  if ((button2_state == LOW && fcu_configmode == true) || BlHeli.HostInterface() == 0)
+  {
+    Serial.println("Config Mode disabled!");
+    fcu_configmode = false;
+  }
+
+  if (fcu_configmode == true)
+  {
+    BlHeli.HostInterface();
+  }
+  else
+  {
+    if (Serial.available() > 0)
+    {
+      String input;
+      input = Serial.readString();
+      if (isDigit(input.toInt()))
+      {
+        rc_throttle = input.toInt();
+      }
+      if (input == "calibrate")
+      {
+        calibrateAngles();
+      }
+      if (input == "reboot")
+      {
+        _softRestart();
+      }
+    }
+
 #ifdef TARGET_TEENSY35
-  //rc.parseIncomingBytes();
-
-  /* Barometer */
-  abs_airpressure = bmp.readPressure();
-  temperature_icp = bmp.readTemperature();
-
-  /* IMU */
-  mpu6050.update();
-
-  acc_x = mpu6050.getRawAccX();
-  acc_y = mpu6050.getRawAccY();
-  acc_z = mpu6050.getRawAccZ();
-  gyr_x = mpu6050.getRawGyroX();
-  gyr_y = mpu6050.getRawGyroY();
-  gyr_z = mpu6050.getRawGyroY();
-
-  temperature_icm = mpu6050.getTemp();
+    rc.parseIncomingBytes();
 
 #elif defined(TARGET_FCU1062)
 
-  /* Barometer */
-  icp.measureStart(icp.NORMAL);
-  if (icp.dataReady())
-  {
-    abs_airpressure = icp.getPressurePa();
-    temperature_icp = icp.getTemperatureC();
-  }
-
-  /* IMU */
-  if (icm.dataReady())
-  {
-    icm.getAGMT();
-    getScaledAgmt(icm.agmt);
-  }
-#endif
-
-  relative_altitude = ((pow((gndlvl_airpressure / abs_airpressure), (1 / 5.257)) - 1) * (temperature_avg + 273.15)) / 0.0065;
-  temperature_avg = (temperature_icm + temperature_icp) / 2;
-
-  mainControl();
-
-  // 10 ms
-  if (since_int1 > interval1)
-  {
-    since_int1 -= interval1;
-  }
-  // 100 ms
-  if (since_int2 > interval2)
-  { /*
-    Serial.print(left_front);
-    Serial.print(" lf ");
-
-    Serial.print(left_side);
-    Serial.print(" ls ");
-
-    Serial.print(left_rear);
-    Serial.print(" lr ");
-
-    Serial.print(right_front);
-    Serial.print(" rf ");
-
-    Serial.print(right_side);
-    Serial.print(" rs ");
-
-    Serial.print(right_rear);
-    Serial.println(" rr "); 
-    Serial.print(total_angle_x);
-    Serial.print(" X:");
-    Serial.print(total_angle_y);
-    Serial.println(" Y:"); */
-    Serial.println((String) "    X: " + total_angle_x + "  Y: " + total_angle_y);
-    since_int2 -= interval2;
-  } 
-
-  // 500 ms
-  if (since_int3 > interval3)
-  {
-    since_int3 -= interval3;
-  }
-  // 1000 ms
-  if (since_int4 > interval4)
-  {
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print(relative_altitude);
-    display.print("m");
-    display.display();
-    since_int4 -= interval4;
-  }
-  // 5000 ms
-  if (since_int5 > interval5)
-  {
-    fetchPwb();
-    since_int5 -= interval5;
-  }
-}
-
-void fetchPwb()
-{
-  Wire.beginTransmission(PWB_ADDR_IIC);
-  Wire.requestFrom(PWB_ADDR_IIC, 24);
-
-  if (Wire.available())
-  {
-    int i = 0;
-    while (Wire.available()) // slave may send less than requested
+    /* Barometer */
+    icp.measureStart(icp.NORMAL);
+    if (icp.dataReady())
     {
-      pwb_data[i] = Wire.receive(); // receive a byte as character
-      i = i + 1;
+      abs_airpressure = icp.getPressurePa();
+      temperature_icp = icp.getTemperatureC();
     }
 
-    //A union datatypes makes the byte and float elements share the same piece of memory, which enables conversion from a byte array to a float possible
-    union Param1
+    /* IMU */
+    if (icm.dataReady())
     {
-      byte bytes[4];
-      float fvalue;
-    } current_tot_u;
-    current_tot_u.bytes[0] = pwb_data[0];
-    current_tot_u.bytes[1] = pwb_data[1];
-    current_tot_u.bytes[2] = pwb_data[2];
-    current_tot_u.bytes[3] = pwb_data[3];
-    battery_amps = current_tot_u.fvalue * 60;
+      icm.getAGMT();
+      getScaledAgmt(icm.agmt);
+    }
+#endif
 
-    union Param2
+    mainControl();
+
+    time = micros();
+    long int loop_time = 1000000 / (time - prev_time);
+    prev_time = time;
+
+    // 1 ms
+    if (since_int1 > interval1)
     {
-      byte bytes[4];
-      float fvalue;
-    } DRPS_Union; //DRPS = Drum Revs per Second
-    DRPS_Union.bytes[0] = pwb_data[4];
-    DRPS_Union.bytes[1] = pwb_data[5];
-    DRPS_Union.bytes[2] = pwb_data[6];
-    DRPS_Union.bytes[3] = pwb_data[7];
-    motor1_amps = DRPS_Union.fvalue;
+      /* IMU */
+      mpu6050.update();
+      acc_x = mpu6050.getRawAccX();
+      acc_y = mpu6050.getRawAccY();
+      acc_z = mpu6050.getRawAccZ();
+      gyr_x = mpu6050.getRawGyroX();
+      gyr_y = mpu6050.getRawGyroY();
+      gyr_z = mpu6050.getRawGyroY();
+      temperature_icm = mpu6050.getTemp();
+
+      since_int1 -= interval1;
+    }
+    // 100 ms
+    if (since_int2 > interval2)
+    { 
+      Serial.print("lf: ");
+      Serial.print(left_front);
+
+      Serial.print("    ls: ");
+      Serial.print(left_side);
+
+      Serial.print("    lr: ");
+      Serial.print(left_rear);
+
+      Serial.print("    rf: ");
+      Serial.print(right_front);
+
+      Serial.print("    rs: ");
+      Serial.print(right_side);
+
+      Serial.print("    rr: ");
+      Serial.print(right_rear);
+
+      Serial.print("  X:");
+      Serial.print(total_angle_x);
+
+      Serial.print("  Y:");
+      Serial.print(total_angle_y);
+
+      Serial.print("  Z:");
+      Serial.print(total_angle_z);
+
+      Serial.print((String) "  Cycl.(us): " + loop_time);
+      Serial.print("  CPU temp: ");
+      Serial.println(InternalTemperature.readTemperatureC(), 1);
+      since_int2 -= interval2;
+    }
+
+    // 500 ms
+    if (since_int3 > interval3)
+    {
+      /* Barometer */
+      abs_airpressure = bmp.readPressure();
+      temperature_icp = bmp.readTemperature();
+      relative_altitude = ((pow((gndlvl_airpressure / abs_airpressure), (1 / 5.257)) - 1) * (temperature_avg + 273.15)) / 0.0065;
+      temperature_avg = (temperature_icm + temperature_icp) / 2;
+      since_int3 -= interval3;
+    }
+    // 1000 ms
+    if (since_int4 > interval4)
+    {
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print(relative_altitude);
+      display.print("m");
+      display.display();
+
+      since_int4 -= interval4;
+    }
+    // 5000 ms
+    if (since_int5 > interval5)
+    {
+      //powerMonitor();
+      since_int5 -= interval5;
+    }
   }
-
-  Wire.endTransmission();
 }
+
+/* 
+      static bool up = true;
+      static bool down = false;
+
+      if (rc_throttle >= 1 && rc_throttle < 255 && up == true)
+        rc_throttle += 1;
+      if (rc_throttle > 1 && rc_throttle <= 255 && down == true)
+        rc_throttle -= 1;
+
+      if (rc_throttle == 1 && down == true && up == false)
+      {
+        down = false;
+        up = true;
+      }
+
+      if (rc_throttle == 255 && up == true && down == false)
+      {
+        up = false;
+        down = true;
+      }
+
+      if (up == true)
+        Serial.println("up = true");
+
+      if (down == true)
+        Serial.println("down = true");
+      */

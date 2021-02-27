@@ -19,6 +19,8 @@
 #define OFFSET_Y_ADDR 20
 #define OFFSET_Z_ADDR 30
 
+extern long SERIAL_BAUDRATE;
+
 #ifdef TARGET_TEENSY40
 #define MOTOR1 6
 #define MOTOR2 14
@@ -92,13 +94,6 @@ extern uint8_t rc_button1;
 extern uint8_t rc_button2;
 extern uint8_t rc_button3;
 extern uint8_t rc_button4;
-
-/* Powerboard Variables */
-extern float motor1_amps;
-extern float motor2_amps;
-extern float battery_amps;
-extern float battery_temp;
-extern float battery_voltage;
 
 extern uint16_t left_front;  // M2: CW
 extern uint16_t left_side;   // M3: CCW

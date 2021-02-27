@@ -33,9 +33,9 @@ float total_angle_x = 0; // roll
 float total_angle_y = 0; // pitch
 float total_angle_z = 0; // yaw
 
-float offset_angle_x = 0;
-float offset_angle_y = 0;
-float offset_angle_z = 0;
+float offset_angle_x = EEPROM.read(OFFSET_X_ADDR);
+float offset_angle_y = EEPROM.read(OFFSET_Y_ADDR);
+float offset_angle_z = EEPROM.read(OFFSET_Z_ADDR);
 
 float mag_heading = 0;       // yaw calculated w/magnetometer
 float declination_angle = 2; // depends on location
@@ -43,7 +43,7 @@ float rad_to_deg = 180 / 3.141592654f;
 
 /* PID */
 const float CORRECTION_P = 50;
-const float CORRECTION_I = 0.05;
+const float CORRECTION_I = 1.0;
 const float CORRECTION_D = 30;
 const float DESIRED_ANGLE = 0;
 
@@ -77,7 +77,7 @@ float derivative_y = 0;
 float derivative_z = 0;
 float derivative_alt = 0;
 
-void get_total_angles()
+void calculate_total_angles()
 {
   // complementary filters
   float acc_angle_x = atan((acc_y / 16384.0) / sqrt(pow((acc_x / 16384.0), 2) + pow((acc_z / 16384.0), 2))) * rad_to_deg;
@@ -87,6 +87,7 @@ void get_total_angles()
   float gyr_angle_z = (gyr_z / 131) * elapsed_time;
   total_angle_x = (0.98 * (total_angle_x + gyr_angle_x) + 0.02 * acc_angle_x) - offset_angle_x;
   total_angle_y = (0.98 * (total_angle_y + gyr_angle_y) + 0.02 * acc_angle_y) - offset_angle_y;
+  total_angle_z = gyr_angle_z - offset_angle_z;
 
   float mag_angle_x = total_angle_x;                       // roll
   float mag_angle_y = total_angle_y - (total_angle_y * 2); // mag and gyr axis are opposed
@@ -94,22 +95,25 @@ void get_total_angles()
 
   float mag_x_hor = mag_x * cos(mag_angle_y) + mag_y * sin(mag_angle_x) * sin(mag_angle_y) - mag_z * cos(mag_angle_x) * sin(mag_angle_y);
   float mag_y_hor = mag_y * cos(mag_angle_x) + mag_z * sin(mag_angle_x);
-  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle;
+  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle; 
+  
+  /*
+  mpu6050.update();
+  total_angle_x = mpu6050.getAngleX() - offset_angle_x;
+  total_angle_y = mpu6050.getAccAngleY() - offset_angle_y;
+  total_angle_z = mpu6050.getAngleZ() - offset_angle_z; */
 }
 
 void calibrateAngles()
-{/*
-  EEPROM.put(OFFSET_X_ADDR, total_angle_x);
-  EEPROM.put(OFFSET_Y_ADDR, total_angle_y);
+{
+  mpu6050.update();
+  EEPROM.put(OFFSET_X_ADDR, mpu6050.getAngleX());
+  EEPROM.put(OFFSET_Y_ADDR, mpu6050.getAngleY());
+  EEPROM.put(OFFSET_Z_ADDR, mpu6050.getAngleZ());
 
   EEPROM.get(OFFSET_X_ADDR, offset_angle_x);
   EEPROM.get(OFFSET_Y_ADDR, offset_angle_y);
   EEPROM.get(OFFSET_Z_ADDR, offset_angle_z);
-*/
-  offset_angle_x = total_angle_x;
-  offset_angle_y = total_angle_y;
-  total_angle_x -= offset_angle_x;
-  total_angle_y -= offset_angle_y;
 
   Serial.println((String) "    X: " + offset_angle_x + "  Y: " + offset_angle_y);
   Serial.println("Angle offset stored in EEPROM!");
@@ -129,17 +133,17 @@ void initController()
   pinMode(MOTOR3, OUTPUT);
   pinMode(MOTOR4, OUTPUT);
   pinMode(MOTOR5, OUTPUT);
-  pinMode(MOTOR6, OUTPUT); /*
+  pinMode(MOTOR6, OUTPUT);
   analogWrite(MOTOR1, THROTTLE_MIN);
   analogWrite(MOTOR2, THROTTLE_MIN);
   analogWrite(MOTOR3, THROTTLE_MIN);
   analogWrite(MOTOR4, THROTTLE_MIN);
   analogWrite(MOTOR5, THROTTLE_MIN);
-  analogWrite(MOTOR6, THROTTLE_MIN); 
-*/
-  //EEPROM.get(OFFSET_X_ADDR, offset_angle_x);
-  //EEPROM.get(OFFSET_Y_ADDR, offset_angle_y);
-  //EEPROM.get(OFFSET_Z_ADDR, offset_angle_z);
+  analogWrite(MOTOR6, THROTTLE_MIN);
+
+  EEPROM.get(OFFSET_X_ADDR, offset_angle_x);
+  EEPROM.get(OFFSET_Y_ADDR, offset_angle_y);
+  EEPROM.get(OFFSET_Z_ADDR, offset_angle_z);
 }
 
 int pitch_correction(int pid_input = 0)
@@ -293,6 +297,8 @@ void pid_calculation()
 
 void mainControl()
 {
+  calculate_total_angles();
+
   previous_time = current_time;
   current_time = micros();
   elapsed_time = (current_time - previous_time) / 1000000;
@@ -313,8 +319,6 @@ void mainControl()
 
   left_front = left_side = left_rear = right_front = right_side = right_rear = throttle;
 
-  get_total_angles();
-
   if (pitch < 2 && roll < 2 && yaw < 2)
     pid_calculation();
 
@@ -328,14 +332,16 @@ void mainControl()
   right_front = constrain(right_front, THROTTLE_MIN, THROTTLE_MAX);
   right_side = constrain(right_side, THROTTLE_MIN, THROTTLE_MAX);
   right_rear = constrain(right_rear, THROTTLE_MIN, THROTTLE_MAX);
-  
-  analogWrite(MOTOR1, right_front);
-  analogWrite(MOTOR2, left_front);
-  analogWrite(MOTOR3, left_side);
-  analogWrite(MOTOR4, left_rear);
-  analogWrite(MOTOR5, right_rear);
-  analogWrite(MOTOR6, right_side); 
 
+  if (rc_throttle > 0)
+  {
+    analogWrite(MOTOR1, right_front);
+    analogWrite(MOTOR2, left_front);
+    analogWrite(MOTOR3, left_side);
+    analogWrite(MOTOR4, left_rear);
+    analogWrite(MOTOR5, right_rear);
+    analogWrite(MOTOR6, right_side);
+  }
 }
 
 void avoid_obstacles()
