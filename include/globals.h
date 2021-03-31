@@ -15,9 +15,15 @@
 #define CH_STATE_ADDR 0
 #define BD_STATE_ADDR 1
 #define TP_STATE_ADDR 2
-#define OFFSET_X_ADDR 10
-#define OFFSET_Y_ADDR 20
-#define OFFSET_Z_ADDR 30
+#define TM_STATE_ADDR 3
+
+#define OFS_GYR_X_ADDR 10
+#define OFS_GYR_Y_ADDR 15
+#define OFS_GYR_Z_ADDR 20
+
+#define OFS_ACC_X_ADDR 25
+#define OFS_ACC_Y_ADDR 30
+#define OFS_ACC_Z_ADDR 35
 
 extern long SERIAL_BAUDRATE;
 
@@ -52,17 +58,21 @@ extern RF24 radio;
 #endif
 
 #ifdef TARGET_TEENSY35
-#include <MPU6050_tockn.h>
 #include <Adafruit_BMP280.h>
+#include <Adafruit_MPU6050.h>
+#include <I2Cdev.h>
+#include <MPU6050.h>
+#include <hc12.h>
 
 extern Adafruit_BMP280 bmp;
-extern MPU6050 mpu6050;
+extern MPU6050 mpu;
+extern HC12 radio;
 
-#define HC12 Serial4
+#define hc12_uart Serial4
 #define gps Serial5
 
 // GPIO
-#define HC12_COMMAND_MODE 39
+#define HC12_CMD_MODE 39
 #define BUTTON1 35
 #define BUTTON2 36
 #define PWM_PIN 3
@@ -85,29 +95,20 @@ extern float groundlvl_pressure;
 extern float abs_airpressure;
 extern float relative_altitude;
 
+extern float temperature_avg;
+extern float temperature_icp;
+extern float temperature_icm;
+
 /* Transmitter Variables */
 extern uint16_t rc_throttle;
 extern uint16_t rc_yaw;
 extern uint16_t rc_pitch;
 extern uint16_t rc_roll;
-extern uint8_t rc_button1;
-extern uint8_t rc_button2;
-extern uint8_t rc_button3;
-extern uint8_t rc_button4;
+extern uint8_t rc_param1;
+extern uint8_t rc_param2;
+extern uint8_t rc_param3;
+extern uint8_t rc_param4;
 
-extern uint16_t left_front;  // M2: CW
-extern uint16_t left_side;   // M3: CCW
-extern uint16_t left_rear;   // M4: CW
-extern uint16_t right_front; // M1: CCW
-extern uint16_t right_side;  // M6: CW
-extern uint16_t right_rear;  // M5: CCW
-
-extern float total_angle_x;
-extern float total_angle_y;
-extern float total_angle_z;
-
-extern float acc_x, acc_y, acc_z;
-extern float gyr_x, gyr_y, gyr_z;
-extern float mag_x, mag_y, mag_z;
+extern uint16_t crc_xmodem(const uint8_t *data, uint16_t len);
 
 #endif
