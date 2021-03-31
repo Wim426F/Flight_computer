@@ -1,7 +1,6 @@
 #include <globals.h>
 #include <blheli_6way.h>
 #include <OneWire.h>
-#include <util/crc16.h>
 
 OneWire esc1(MOTOR1);
 OneWire esc2(MOTOR2);
@@ -9,24 +8,6 @@ OneWire esc3(MOTOR3);
 OneWire esc4(MOTOR4);
 OneWire esc5(MOTOR5);
 OneWire esc6(MOTOR6);
-
-byte pc_incoming[8];        // request coming from pc
-byte pc_answer[9] = {0x2e}; // answer to blhelisuite request
-
-byte esc_request[8];           // command for each esc
-byte esc_incoming[9] = {0x2e}; // answer from esc to my request
-
-byte interface_mode = 0;
-
-uint16_t crc_xmodem(const uint8_t *data, uint16_t len)
-{
-    uint16_t crc = 0;
-    for (uint16_t i = 0; i < len; i++)
-    {
-        crc = crc_xmodem_update(crc, data[i]);
-    }
-    return crc;
-}
 
 enum ErrorCodes
 {
@@ -43,6 +24,14 @@ enum ErrorCodes
     ACK_D_GENERAL_ERROR = 0x0F    // Device communication failed for unknown reason
 };
 
+byte pc_incoming[8];        // request coming from pc
+byte pc_answer[9] = {0x2e}; // answer to blhelisuite request
+
+byte esc_request[8];           // command for each esc
+byte esc_incoming[9] = {0x2e}; // answer from esc to my request
+
+byte interface_mode = 0;
+
 int BlHeli6Way::HostInterface()
 {
     if (SERIAL_BAUDRATE != 38400)
@@ -51,7 +40,7 @@ int BlHeli6Way::HostInterface()
         Serial.flush();
         Serial.end();
         Serial.begin(38400);
-    } 
+    }
     if (Serial.available() > 0)
     {
         byte packet[8];
@@ -152,7 +141,7 @@ void BlHeli6Way::InterfaceGetVersion() // Retrieve Interface version as byte val
 
     answer[8] = crc_high;
     answer[9] = crc_low;
-    
+
     for (int i = 0; i < 10; i++)
     {
         Serial.write(answer[i]);
@@ -191,7 +180,7 @@ void BlHeli6Way::DeviceInitFlash() // Enable Flash access to Target MCU and retr
 
     answer[10] = crc_high;
     answer[11] = crc_low;
-    
+
     for (int i = 0; i < 12; i++)
     {
         Serial.write(answer[i]);
@@ -229,7 +218,7 @@ void BlHeli6Way::InterfaceSetMode() // Set interface mode
 
     answer[7] = crc_high;
     answer[8] = crc_low;
-    
+
     for (int i = 0; i < 9; i++)
     {
         Serial.write(answer[i]);
