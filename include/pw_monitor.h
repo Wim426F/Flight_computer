@@ -1,5 +1,5 @@
-#ifndef PW_MONITOR_H_
-#define PW_MONITOR_H_
+#ifndef PW_MONITOR_H
+#define PW_MONITOR_H
 
 
 void powerMonitor();
@@ -7,8 +7,8 @@ void powerMonitor();
 /* Powerboard Variables */
 extern float motor1_amps;
 extern float motor2_amps;
-extern float battery_amps;
-extern float battery_temp;
-extern float battery_voltage;
+extern uint16_t batt_amps;
+extern uint16_t batt_temp;
+extern uint16_t batt_voltage;
 
 #endif
