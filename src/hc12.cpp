@@ -388,7 +388,7 @@ HC12::rc_ack_t HC12::readData()
             rc_pitch = packet[5];
             rc_roll = packet[6];
             //rc_pitch = packet[10] << 8 | packet[9];
-            Serial.print((String) "AY: " + rc_throttle + "  AX: " + rc_yaw + "  BY: " + rc_pitch + "  BX: " + rc_roll);
+            //Serial.print((String) "AY: " + rc_throttle + "  AX: " + rc_yaw + "  BY: " + rc_pitch + "  BX: " + rc_roll);
             Serial.println(" ");
           }
           if (packet[2] >= 8) // data length
@@ -397,7 +397,7 @@ HC12::rc_ack_t HC12::readData()
             rc_param2 = packet[8];
             rc_param3 = packet[9];
             rc_param4 = packet[10];
-            Serial.print((String) "P1: " + rc_param1 + "  P2: " + rc_param2 + "  P3: " + rc_param3 + "  P4: " + rc_param4);
+            //Serial.print((String) "P1: " + rc_param1 + "  P2: " + rc_param2 + "  P3: " + rc_param3 + "  P4: " + rc_param4);
             Serial.println(" ");
           }
           ack = ACK::OK;
