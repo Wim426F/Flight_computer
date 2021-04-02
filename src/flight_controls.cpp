@@ -110,7 +110,6 @@ void getTotalAngles()
 
 void calibrateAngles()
 {
-
 }
 
 void initController()
@@ -141,30 +140,29 @@ int correct_pitch(int pid_input = 0)
   int pitch_forward = abs(pitch);
   int pitch_backward = abs(pitch);
 
-  if (pitch > 1 || pid_input > 1)
+  if (pitch > 1)
   {
     correction = map(pitch_forward, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
-
-    left_front -= correction;
-    right_front -= correction;
-    left_rear += correction;
-    right_rear += correction;
-
     Serial.print((String) "   pitch+: " + correction);
   }
-  else // it's negative
+
+  if (pitch < -1)
   {
     correction = map(pitch_backward, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
-
-    left_front += correction;
-    right_front += correction;
-    left_rear -= correction;
-    right_rear -= correction;
-
+    correction = -correction;
     Serial.print((String) "   pitch-: " + correction);
   }
+
+  if (pid_input > 1)
+  {
+    correction += pid_input;
+  }
+
+  left_front -= correction;
+  right_front -= correction;
+  left_rear += correction;
+  right_rear += correction;
+
   return correction;
 }
 
@@ -174,35 +172,31 @@ int correct_roll(int pid_input = 0)
   int roll_right = abs(roll);
   int roll_left = abs(roll);
 
-  if (roll > 1 || pid_input > 1)
-  {
-    correction = map(roll_right, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
-
-    left_side -= correction;
-    left_front -= correction * 0.75;
-    left_rear -= correction * 0.75;
-    right_side += correction;
-    right_front += correction * 0.75;
-    right_rear += correction * 0.75;
-
-    Serial.print((String) "   roll+: " + correction);
-  }
-  else
-  //if (roll < -1 || pid_input < -1)
+  if (roll > 1)
   {
     correction = map(roll_left, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
+    Serial.print((String) "   roll+: " + correction);
+  }
 
-    left_side += correction;
-    left_front += correction * 0.75;
-    left_rear += correction * 0.75;
-    right_side -= correction;
-    right_front -= correction * 0.75;
-    right_rear -= correction * 0.75;
-
+  if (roll < -1)
+  {
+    correction = map(roll_right, 0, 1023, 0, steer_diff);
+    correction = -correction;
     Serial.print((String) "   roll-: " + correction);
   }
+
+  if (pid_input > 1)
+  {
+    correction += pid_input;
+  }
+
+  left_side -= correction;
+  left_front -= correction * 0.75;
+  left_rear -= correction * 0.75;
+  right_side += correction;
+  right_front += correction * 0.75;
+  right_rear += correction * 0.75;
+
   return correction;
 }
 
@@ -212,35 +206,29 @@ int correct_yaw(int pid_input = 0)
   int yaw_cw = abs(yaw);
   int yaw_ccw = abs(yaw);
 
-  if (yaw > 1 || pid_input > 1)
+  if (yaw > 1)
   {
     correction = map(yaw_cw, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
-
-    right_front -= correction;
-    right_rear -= correction;
-    left_side -= correction;
-    left_front += correction;
-    left_rear += correction;
-    right_side += correction;
-
     Serial.println((String) "   yaw+: " + correction);
   }
-  else
-  //if (yaw < -1 || pid_input < -1)
+
+  if (yaw < -1)
   {
     correction = map(yaw_ccw, 0, 1023, 0, steer_diff);
-    correction += abs(pid_input);
-
-    right_front += correction;
-    right_rear += correction;
-    left_side += correction;
-    left_front -= correction;
-    left_rear -= correction;
-    right_side -= correction;
-
     Serial.println((String) "   yaw-: " + correction);
   }
+
+  if (pid_input > 1)
+  {
+    correction += pid_input;
+  }
+
+  right_front -= correction;
+  right_rear -= correction;
+  left_side -= correction;
+  left_front += correction;
+  left_rear += correction;
+  right_side += correction;
   return correction;
 }
 
@@ -286,7 +274,7 @@ void calculate_pid()
   pid_z = proportional_z + integral_z + derivative_z;
   pid_alt = proportional_alt + integral_alt + derivative_alt;
 
-  pid_alt = constrain(pid_alt, 0, 4000); // throttle
+  //pid_alt = constrain(pid_alt, 0, 4000); // throttle
 
   prev_error_x = error_x;
   prev_error_y = error_y;
@@ -316,10 +304,12 @@ void mainControl()
   roll = (rc_roll - 127) * 8;
   yaw = (rc_yaw - 127) * 8;
 
-  if (pitch < 2 && roll < 2 && yaw < 2)
+  //Serial.print((String) "   p:" + pitch + "  r:" + roll);
+
+  if (pitch < 100 && pitch > -100 && roll < 20 && roll > -20)
   {
     calculate_pid();
-    Serial.print((String) "   PID:  x:" + pid_x + "  y:" + pid_y + "  z:" + pid_z + " ");
+    Serial.print((String) "   PID:  x:" + pid_x + "  y:" + pid_y);
   }
 
   Serial.print("  throttle: " + (String)throttle + "  ");
