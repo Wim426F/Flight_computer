@@ -21,10 +21,6 @@ extern float total_angle_x;
 extern float total_angle_y;
 extern float total_angle_z;
 
-extern float offset_gyr_x;
-extern float offset_gyr_y;
-extern float offset_gyr_z;
-
 extern int16_t acc_x, acc_y, acc_z;
 extern int16_t gyr_x, gyr_y, gyr_z;
 extern int16_t mag_x, mag_y, mag_z;

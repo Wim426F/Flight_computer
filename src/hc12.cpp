@@ -12,6 +12,8 @@ uint8_t last_baud = EEPROM.read(BD_STATE_ADDR);
 uint8_t last_txpower = EEPROM.read(TP_STATE_ADDR);
 uint8_t last_txmode = EEPROM.read(TM_STATE_ADDR);
 
+uint64_t since_last_packet = 0;
+
 const float rc_txpower[8] = {0.8, 1.6, 3.2, 6.3, 12, 25, 50, 100};
 const uint32_t rc_baudrate[8] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 
@@ -352,6 +354,12 @@ void HC12::sendData(enum HC12::ACK ack)
 HC12::rc_ack_t HC12::readData()
 {
 #ifdef TARGET_TEENSY35
+  if (millis() - since_last_packet > 500)
+  {
+    Serial.println("No Connection!");
+    rc_throttle = 0;
+  }
+
   ACK ack;
   if (hc12_uart.available() > 0 && hc12_uart.peek() != 0)
   {
@@ -447,6 +455,7 @@ HC12::rc_ack_t HC12::readData()
       }
       digitalWrite(LED_GREEN, HIGH);
       digitalWrite(LED_RED, LOW);
+      since_last_packet = millis();
     }
     else
     {

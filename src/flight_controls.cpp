@@ -6,7 +6,7 @@
 #include <sensors.h>
 
 const float PWM_FREQ = 50;
-const uint16_t THROTTLE_MIN = 2600, THROTTLE_MAX = 6600;
+const uint16_t THROTTLE_MIN = 2800, THROTTLE_MAX = 6800;
 
 bool hold_position = false;
 float hold_altitude = 0;
@@ -39,9 +39,9 @@ float declination_angle = 2; // depends on location
 float rad_to_deg = 180 / 3.141592654f;
 
 /* PID */
-const float CORRECTION_P = 10;
-const float CORRECTION_I = 1.0;
-const float CORRECTION_D = 10;
+const float P_GAIN = 0;
+const float I_GAIN = 0;
+const float D_GAIN = 0;
 const float DESIRED_ANGLE = 0;
 
 float error_x = 0;
@@ -143,20 +143,17 @@ int correct_pitch(int pid_input = 0)
   if (pitch > 1)
   {
     correction = map(pitch_forward, 0, 1023, 0, steer_diff);
-    Serial.print((String) "   pitch+: " + correction);
+    Serial.print("   pitch+: " + (String)(correction + pid_input));
   }
 
   if (pitch < -1)
   {
     correction = map(pitch_backward, 0, 1023, 0, steer_diff);
     correction = -correction;
-    Serial.print((String) "   pitch-: " + correction);
+    Serial.print("   pitch-: " + (String)(correction + pid_input));
   }
 
-  if (pid_input > 1)
-  {
-    correction += pid_input;
-  }
+  correction += pid_input;
 
   left_front -= correction;
   right_front -= correction;
@@ -175,20 +172,17 @@ int correct_roll(int pid_input = 0)
   if (roll > 1)
   {
     correction = map(roll_left, 0, 1023, 0, steer_diff);
-    Serial.print((String) "   roll+: " + correction);
+    Serial.print("   roll+: " + (String)(correction + pid_input));
   }
 
   if (roll < -1)
   {
     correction = map(roll_right, 0, 1023, 0, steer_diff);
     correction = -correction;
-    Serial.print((String) "   roll-: " + correction);
+    Serial.print("   roll-: " + (String)(correction + pid_input));
   }
 
-  if (pid_input > 1)
-  {
-    correction += pid_input;
-  }
+  correction += pid_input;
 
   left_side -= correction;
   left_front -= correction * 0.75;
@@ -209,19 +203,17 @@ int correct_yaw(int pid_input = 0)
   if (yaw > 1)
   {
     correction = map(yaw_cw, 0, 1023, 0, steer_diff);
-    Serial.println((String) "   yaw+: " + correction);
+    Serial.println("   yaw+: " + (String)(correction + pid_input));
   }
 
   if (yaw < -1)
   {
     correction = map(yaw_ccw, 0, 1023, 0, steer_diff);
-    Serial.println((String) "   yaw-: " + correction);
+    correction = -correction;
+    Serial.println("   yaw-: " + (String)(correction + pid_input));
   }
 
-  if (pid_input > 1)
-  {
-    correction += pid_input;
-  }
+  correction += pid_input;
 
   right_front -= correction;
   right_rear -= correction;
@@ -239,35 +231,47 @@ void calculate_pid()
   error_z = total_angle_z - DESIRED_ANGLE;
   error_alt = relative_altitude - hold_altitude;
 
-  proportional_x = error_x * CORRECTION_P;
-  proportional_y = error_y * CORRECTION_P;
-  proportional_z = error_z * CORRECTION_P;
-  proportional_alt = error_alt * CORRECTION_P;
+  proportional_x = error_x * P_GAIN;
+  proportional_y = error_y * P_GAIN;
+  proportional_z = error_z * P_GAIN;
+  proportional_alt = error_alt * P_GAIN;
 
-  if (error_x > -2 && error_x < 2) // less than 3 degrees
+  if (abs(error_x) > 0.5 && abs(error_x) < 2) // less than 3 degrees
   {
-    //integral_x += error_x * CORRECTION_I;
+    integral_x += error_x * I_GAIN;
+  }
+  else
+  {
+    integral_x = 0;
   }
 
-  if (error_y > -2 && error_y < 2)
+  if (abs(error_y) > 0.5 && abs(error_y) < 2)
   {
-    //integral_y += error_y * CORRECTION_I;
+    integral_y += error_y * I_GAIN;
+  }
+  else
+  {
+    integral_y = 0;
   }
 
-  if (error_z > -2 && error_z < 2)
+  if (abs(error_z) > 0.5 && abs(error_z) < 2)
   {
-    //integral_z += error_z * CORRECTION_I;
+    integral_z += error_z * I_GAIN;
+  }
+  else
+  {
+    integral_z = 0;
   }
 
   if (error_alt > -0.5 && error_alt < 0.5)
   {
-    //integral_alt += error_alt * CORRECTION_I;
+    integral_alt += error_alt * I_GAIN;
   }
 
-  //derivative_x = ((error_x - prev_error_x) / elapsed_time) * CORRECTION_D;
-  //derivative_y = ((error_y - prev_error_y) / elapsed_time) * CORRECTION_D;
-  //derivative_z = ((error_z - prev_error_z) / elapsed_time) * CORRECTION_D;
-  derivative_alt = ((error_alt - prev_error_alt) / elapsed_time) * CORRECTION_D;
+  derivative_x = ((error_x - prev_error_x) / elapsed_time) * D_GAIN;
+  derivative_y = ((error_y - prev_error_y) / elapsed_time) * D_GAIN;
+  derivative_z = ((error_z - prev_error_z) / elapsed_time) * D_GAIN;
+  derivative_alt = ((error_alt - prev_error_alt) / elapsed_time) * D_GAIN;
 
   pid_x = proportional_x + integral_x + derivative_x;
   pid_y = proportional_y + integral_y + derivative_y;
@@ -296,7 +300,7 @@ void mainControl()
   */
 
   throttle = map(rc_throttle, 0, 255, THROTTLE_MIN, THROTTLE_MAX);
-  steer_diff = (throttle - THROTTLE_MIN) / 2;
+  steer_diff = (throttle - THROTTLE_MIN) / 4;
 
   left_front = left_side = left_rear = right_front = right_side = right_rear = throttle;
 
@@ -306,17 +310,25 @@ void mainControl()
 
   //Serial.print((String) "   p:" + pitch + "  r:" + roll);
 
-  if (pitch < 100 && pitch > -100 && roll < 20 && roll > -20)
+  if (pitch < 150 && pitch > -100 && roll < 20 && roll > -20)
   {
     calculate_pid();
     Serial.print((String) "   PID:  x:" + pid_x + "  y:" + pid_y);
   }
 
-  Serial.print("  throttle: " + (String)throttle + "  ");
+  //Serial.print("  throttle: " + (String)throttle + "  ");
 
   correct_pitch(pid_y);
   correct_roll(pid_x);
   correct_yaw(pid_z);
+
+  if (throttle < (THROTTLE_MIN + 50))
+  {
+    left_front = left_side = left_rear = right_front = right_side = right_rear = 0;
+    pid_x = 0;
+    pid_y = 0;
+    pid_z = 0;
+  }
 
   left_front = constrain(left_front, THROTTLE_MIN, THROTTLE_MAX);
   left_side = constrain(left_side, THROTTLE_MIN, THROTTLE_MAX);
@@ -325,15 +337,12 @@ void mainControl()
   right_side = constrain(right_side, THROTTLE_MIN, THROTTLE_MAX);
   right_rear = constrain(right_rear, THROTTLE_MIN, THROTTLE_MAX);
 
-  if (rc_throttle > 0)
-  {
-    analogWrite(MOTOR1, right_front);
-    analogWrite(MOTOR2, left_front);
-    analogWrite(MOTOR3, left_side);
-    analogWrite(MOTOR4, left_rear);
-    analogWrite(MOTOR5, right_rear);
-    analogWrite(MOTOR6, right_side);
-  }
+  analogWrite(MOTOR1, right_front);
+  analogWrite(MOTOR2, left_front);
+  analogWrite(MOTOR3, left_side);
+  analogWrite(MOTOR4, left_rear);
+  analogWrite(MOTOR5, right_rear);
+  analogWrite(MOTOR6, right_side);
 }
 
 void avoidObstacles()

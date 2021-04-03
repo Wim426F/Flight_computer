@@ -118,8 +118,8 @@ void setup()
   );
 
   mpu.initialize();
-  mpu.setXAccelOffset(-2024);
-  mpu.setYAccelOffset(-1719);
+  mpu.setXAccelOffset(-2015);
+  mpu.setYAccelOffset(-1741);
   mpu.setZAccelOffset(1843);
   mpu.setXGyroOffset(9);
   mpu.setYGyroOffset(31);
@@ -359,6 +359,7 @@ void loop()
 
 #ifdef TARGET_TEENSY35
     radio.readData();
+    mainControl();
     
 
 #elif defined(TARGET_FCU1062)
@@ -402,8 +403,6 @@ void loop()
       Serial.print("  CPU temp: ");
       Serial.println(InternalTemperature.readTemperatureC(), 2); */
       
-      mainControl();
-      
       since_int2 -= interval2;
     }
 
@@ -414,19 +413,21 @@ void loop()
       temperature_icm = mpu.getTemperature();
       abs_airpressure = bmp.readPressure();
       temperature_icp = bmp.readTemperature();
-      relative_altitude = ((pow((gndlvl_airpressure / abs_airpressure), (1 / 5.257)) - 1) * (temperature_avg + 273.15)) / 0.0065;
+      relative_altitude = ((pow((gndlvl_airpressure / abs_airpressure), (1 / 5.257)) - 1) * (temperature_icp + 273.15)) / 0.0065;
       temperature_avg = (temperature_icm + temperature_icp) / 2;
-      since_int3 -= interval3;
-    }
-    // 1000 ms
-    if (since_int4 > interval4)
-    {
+
       display.clearDisplay();
       display.setCursor(0, 0);
       display.print(relative_altitude);
       display.print("m");
       display.display();
 
+      since_int3 -= interval3;
+    }
+    // 1000 ms
+    if (since_int4 > interval4)
+    {
+    
       since_int4 -= interval4;
     }
     // 5000 ms
