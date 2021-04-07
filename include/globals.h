@@ -17,32 +17,19 @@
 #define TP_STATE_ADDR 2
 #define TM_STATE_ADDR 3
 
-#define OFS_GYR_X_ADDR 10
-#define OFS_GYR_Y_ADDR 15
-#define OFS_GYR_Z_ADDR 20
-
-#define OFS_ACC_X_ADDR 25
-#define OFS_ACC_Y_ADDR 30
-#define OFS_ACC_Z_ADDR 35
-
 extern long SERIAL_BAUDRATE;
 
-#ifdef TARGET_TEENSY40
-#define MOTOR1 6
-#define MOTOR2 14
-#define MOTOR3 7
-#define MOTOR4 8
-#define MOTOR5 4
-#define MOTOR6 5
-#endif
+#define gps_uart Serial5
 
 #ifdef TARGET_FCU1062
 
 extern ICM_20948_I2C icm;
 extern ICP101xx icp;
-extern RF24 radio;
+extern RF24 rf24;
 
 // GPIO
+#define BUTTON1 35
+#define BUTTON2 36
 #define RF24_IRQ 42
 #define RF24_CSN 43
 #define IMU_INTR 17
@@ -59,17 +46,15 @@ extern RF24 radio;
 
 #ifdef TARGET_TEENSY35
 #include <Adafruit_BMP280.h>
-#include <Adafruit_MPU6050.h>
 #include <I2Cdev.h>
 #include <MPU6050.h>
 #include <hc12.h>
 
 extern Adafruit_BMP280 bmp;
 extern MPU6050 mpu;
-extern HC12 radio;
+extern HC12 hc12;
 
 #define hc12_uart Serial4
-#define gps Serial5
 
 // GPIO
 #define HC12_CMD_MODE 39
@@ -91,13 +76,6 @@ extern HC12 radio;
 #endif
 
 extern double elapsed_time, current_time, previous_time;
-extern float groundlvl_pressure;
-extern float abs_airpressure;
-extern float relative_altitude;
-
-extern float temperature_avg;
-extern float temperature_icp;
-extern float temperature_icm;
 
 /* Transmitter Variables */
 extern uint16_t rc_throttle;

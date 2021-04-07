@@ -1,8 +1,9 @@
 #ifndef PW_MONITOR_H
 #define PW_MONITOR_H
 
-
 void powerMonitor();
+
+extern float used_capacity;
 
 /* Powerboard Variables */
 extern float motor1_amps;

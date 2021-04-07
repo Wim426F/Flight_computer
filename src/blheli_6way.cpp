@@ -34,54 +34,61 @@ byte interface_mode = 0;
 
 int BlHeli6Way::HostInterface()
 {
-    if (SERIAL_BAUDRATE != 38400)
+    if (digitalRead(BUTTON2 == LOW))
     {
-        Serial.println("Serial baudrate will be changed to 38400");
-        Serial.flush();
-        Serial.end();
-        Serial.begin(38400);
+        InterfaceExit();
     }
-    if (Serial.available() > 0)
+    while (digitalRead(BUTTON2) == HIGH)
     {
-        byte packet[8];
-        for (int i = 0; i < 8; i++)
+        if (SERIAL_BAUDRATE != 38400)
         {
-            packet[i] = Serial.read();
+            Serial.println("Serial baudrate will be changed to 38400");
+            Serial.flush();
+            Serial.end();
+            Serial.begin(38400);
         }
-        if (packet[0] == 0x2f)
+        if (Serial.available() > 0)
         {
+            byte packet[8];
             for (int i = 0; i < 8; i++)
             {
-                pc_incoming[i] = packet[i];
+                packet[i] = Serial.read();
             }
-        }
+            if (packet[0] == 0x2f)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    pc_incoming[i] = packet[i];
+                }
+            }
 
-        if (pc_incoming[1] == 0x30)
-            InterfaceTestAlive();
-        if (pc_incoming[1] == 0x31)
-            ProtocolGetVersion();
-        if (pc_incoming[1] == 0x32)
-            InterfaceGetName();
-        if (pc_incoming[1] == 0x33)
-            InterfaceGetVersion();
-        if (pc_incoming[1] == 0x34)
-            InterfaceExit();
-        if (pc_incoming[1] == 0x35)
-            DeviceReset();
-        if (pc_incoming[1] == 0x37)
-            DeviceInitFlash();
-        if (pc_incoming[1] == 0x38)
-            DeviceEraseAll();
-        if (pc_incoming[1] == 0x3A)
-            DeviceRead();
-        if (pc_incoming[1] == 0x3B)
-            DeviceWrite();
-        if (pc_incoming[1] == 0x3D)
-            DeviceReadEEprom();
-        if (pc_incoming[1] == 0x3E)
-            DeviceWriteEEprom();
-        if (pc_incoming[1] == 0x3F)
-            InterfaceSetMode();
+            if (pc_incoming[1] == 0x30)
+                InterfaceTestAlive();
+            if (pc_incoming[1] == 0x31)
+                ProtocolGetVersion();
+            if (pc_incoming[1] == 0x32)
+                InterfaceGetName();
+            if (pc_incoming[1] == 0x33)
+                InterfaceGetVersion();
+            if (pc_incoming[1] == 0x34)
+                InterfaceExit();
+            if (pc_incoming[1] == 0x35)
+                DeviceReset();
+            if (pc_incoming[1] == 0x37)
+                DeviceInitFlash();
+            if (pc_incoming[1] == 0x38)
+                DeviceEraseAll();
+            if (pc_incoming[1] == 0x3A)
+                DeviceRead();
+            if (pc_incoming[1] == 0x3B)
+                DeviceWrite();
+            if (pc_incoming[1] == 0x3D)
+                DeviceReadEEprom();
+            if (pc_incoming[1] == 0x3E)
+                DeviceWriteEEprom();
+            if (pc_incoming[1] == 0x3F)
+                InterfaceSetMode();
+        }
     }
     return 1;
 }

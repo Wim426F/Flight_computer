@@ -1,9 +1,7 @@
-#ifndef FLIGHT_CONTROLS_H
-#define FLIGHT_CONTROLS_H
-
+#ifndef FLIGHT_CONTROLLER_H
+#define FLIGHT_CONTROLLER_H
 
 void initController();
-void calibrateAngles();
 void mainControl();
 void enableWaypoint(float longitude, float latitude, float altitude);
 
@@ -20,6 +18,13 @@ extern uint16_t right_rear;  // M5: CCW
 extern float total_angle_x;
 extern float total_angle_y;
 extern float total_angle_z;
+
+extern float p_gain;
+extern float i_gain;
+extern float d_gain;
+extern float angle_x_setpoint;
+extern float angle_y_setpoint;
+extern float angle_z_setpoint;
 
 extern int16_t acc_x, acc_y, acc_z;
 extern int16_t gyr_x, gyr_y, gyr_z;

@@ -1,8 +1,6 @@
 #ifndef HC12_H
 #define HC12_H
 
-#include <flight_controls.h>
-
 class HC12
 {
 private:

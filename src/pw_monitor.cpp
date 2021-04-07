@@ -1,5 +1,5 @@
 #include <globals.h>
-#include <hc12.h>
+#include <sensors.h>
 
 #define PWB_ADDR_IIC 1 // Powerboard address
 
@@ -13,13 +13,15 @@ uint16_t batt_voltage = 16878;
 byte voltage_detect = 0;
 byte pwb_status = 0;
 
+float used_capacity = 0;
+
 const float MAX_BATT_TEMP = 45; // Celsius
 const float MIN_VOLTAGE_3S = 9;
 const float MIN_VOLTAGE_4S = 11.2;
 const float MAX_CURRENT_3S = 100; // 17A per motor
 const float MAX_CURRENT_4S = 150; // 25A per motor
 
-void fetchPwb()
+void updatePwb()
 {
   Wire.beginTransmission(PWB_ADDR_IIC);
   Wire.requestFrom(PWB_ADDR_IIC, 24);
@@ -49,7 +51,7 @@ void fetchPwb()
     {
       byte bytes[4];
       float fvalue;
-    } param2; 
+    } param2;
     param2.bytes[0] = pwb_data[4];
     param2.bytes[1] = pwb_data[5];
     param2.bytes[2] = pwb_data[6];
@@ -60,7 +62,7 @@ void fetchPwb()
     {
       byte bytes[4];
       float fvalue;
-    } param3; 
+    } param3;
     param3.bytes[0] = pwb_data[4];
     param3.bytes[1] = pwb_data[5];
     param3.bytes[2] = pwb_data[6];
@@ -71,7 +73,7 @@ void fetchPwb()
     {
       byte bytes[4];
       float fvalue;
-    } param4; 
+    } param4;
     param4.bytes[0] = pwb_data[4];
     param4.bytes[1] = pwb_data[5];
     param4.bytes[2] = pwb_data[6];
@@ -82,7 +84,7 @@ void fetchPwb()
     {
       byte bytes[4];
       float fvalue;
-    } param5; 
+    } param5;
     param5.bytes[0] = pwb_data[4];
     param5.bytes[1] = pwb_data[5];
     param5.bytes[2] = pwb_data[6];
@@ -95,11 +97,12 @@ void fetchPwb()
 
 void powerMonitor() // Main function
 {
-  fetchPwb();
+  updatePwb();
 
   if (batt_voltage < MIN_VOLTAGE_3S && batt_amps < 1) // when in standby
   {
-    //radio.sleep();
-    
+#ifdef TARGET_TEENSY35
+    hc12.sleep();
+#endif
   }
 }

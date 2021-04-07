@@ -1,7 +1,9 @@
+#ifdef TARGET_TEENSY35
 #include <string>
 #include <hc12.h>
 #include <pw_monitor.h>
 #include <globals.h>
+#include <sensors.h>
 
 using namespace std;
 String set_baudrate;
@@ -22,7 +24,6 @@ uint8_t send_packet[25];
 
 HC12::rc_ack_t HC12::setChannel(int new_channel)
 {
-#ifdef TARGET_TEENSY35
   ACK ack;
   if (new_channel != last_channel)
   {
@@ -69,14 +70,12 @@ HC12::rc_ack_t HC12::setChannel(int new_channel)
     ack = ACK::OK;
     Serial.println((String) "Channel is already " + new_channel);
   }
-#endif
 
   return ack;
 }
 
 HC12::rc_ack_t HC12::setTxPower(int new_txpower)
 {
-#ifdef TARGET_TEENSY35
   ACK ack;
   if (new_txpower != last_txpower)
   {
@@ -111,13 +110,11 @@ HC12::rc_ack_t HC12::setTxPower(int new_txpower)
     ack = ACK::OK;
     Serial.println((String) "Transmit power is already " + rc_txpower[new_txpower - 1] + "mW");
   }
-#endif
   return ack;
 }
 
 HC12::rc_ack_t HC12::setBaudRate(int new_baud)
 {
-#ifdef TARGET_TEENSY35
   ACK ack;
   digitalWrite(HC12_CMD_MODE, LOW);
   delay(40);
@@ -146,8 +143,6 @@ HC12::rc_ack_t HC12::setBaudRate(int new_baud)
 
   digitalWrite(HC12_CMD_MODE, HIGH);
   delay(80);
-
-#endif
   return ack;
 }
 
@@ -317,9 +312,9 @@ void HC12::wakeUp()
 
 void HC12::sendData(enum HC12::ACK ack)
 {
-  temperature_icp *= 100;
-  batt_temp = (int)temperature_icp;
-  temperature_icp /= 100;
+  temp_barometer *= 100;
+  batt_temp = (int)temp_barometer;
+  temp_barometer /= 100;
 
   //Serial.print("Answer: ");
   send_packet[0] = RECEIVER_ANSWER;
@@ -345,15 +340,14 @@ void HC12::sendData(enum HC12::ACK ack)
     //Serial.print(send_packet[i]);
     //Serial.print(" ");
     hc12_uart.write(send_packet[i]);
-    hc12_uart.flush();
-    long flush_time = 1000000 / (rc_baudrate[last_baud] / 8);
-    delayMicroseconds(flush_time);
+    //hc12_uart.flush();
+    //long flush_time = 1000000 / (rc_baudrate[last_baud] / 8);
+    //delayMicroseconds(flush_time);
   }
 }
 
 HC12::rc_ack_t HC12::readData()
 {
-#ifdef TARGET_TEENSY35
   if (millis() - since_last_packet > 500)
   {
     Serial.println("No Connection!");
@@ -472,5 +466,5 @@ HC12::rc_ack_t HC12::readData()
     ack = ACK::NOT_READY;
   }
   return ack;
-#endif
 }
+#endif
