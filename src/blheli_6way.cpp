@@ -1,3 +1,7 @@
+/*
+    Allows programming the parameters of individual esc's with Blhelisuite16
+    FCU works in passthrough mode when enabled
+*/
 #include <globals.h>
 #include <blheli_6way.h>
 #include <OneWire.h>
