@@ -239,32 +239,30 @@ void loop()
   {
   }
 
+#ifdef TARGET_TEENSY35
+
   /* Configuration Modus */
   if (button1_state == LOW && button2_state == LOW)
   {
     Serial.println("Config Mode enabled!");
-#ifdef TARGET_TEENSY35
     display.clearDisplay();
     display.setCursor(0, 0);
     display.print("Config Mode");
-#endif
     BlHeli.HostInterface(); // this is a loop
   }
+
+  hc12.readData();
+#endif
 
   time = micros();
   long int loop_time = 1000000 / (time - prev_time);
   prev_time = time;
 
-#ifdef TARGET_TEENSY35
-
-  hc12.readData();
-
-#endif
+  mainControl();
 
   // 1 ms
   if (since_int1 > interval1)
   {
-    mainControl();
     since_int1 -= interval1;
   }
   // 100 ms
@@ -274,20 +272,17 @@ void loop()
       Serial.print("  tota-off: ");
       Serial.print(total_angle_x - offset_gyr_x);
       
-
       Serial.print((String) "  Cycles/s: " + loop_time);
       Serial.print("  CPU temp: ");
       Serial.println(InternalTemperature.readTemperatureC(), 2); */
-
     since_int2 -= interval2;
   }
 
   // 500 ms
   if (since_int3 > interval3)
   {
-#ifdef TARGET_TEENSY35
     updateBarometer();
-
+#ifdef TARGET_TEENSY35
     display.clearDisplay();
     display.setCursor(0, 0);
     display.print(relative_altitude);
