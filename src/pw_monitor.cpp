@@ -1,3 +1,7 @@
+/*
+    Monitor battery & temperature of motor's and esc's
+*/
+
 #include <globals.h>
 #include <sensors.h>
 

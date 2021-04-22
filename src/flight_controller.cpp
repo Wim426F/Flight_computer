@@ -4,8 +4,9 @@
 #include <globals.h>
 #include <sensors.h>
 
-const float PWM_FREQ = 12000; // oneshot42: 12000Hz, servo: 50Hz, oneshot125: 4000Hz
-const uint16_t THROTTLE_MIN = 3300, THROTTLE_MAX = 6600; // min = 5% = 3300, max = 10% = 6600
+const int PWM_FREQ = 4000; // oneshot42: 12000Hz, servo: 50Hz, oneshot125: 4000Hz
+const int PWM_RES = 11;
+const int THROTTLE_MIN = 1024, THROTTLE_MAX = 2048;
 
 bool hold_position = false;
 float hold_altitude = 0;
@@ -22,9 +23,9 @@ uint16_t right_rear = 0;  // M5: CCW
 int yaw = 0, pitch = 0, roll = 0, throttle = 0;
 int steer_diff = 0; // only allow --% of throttle to be shifted
 
-int16_t acc_x = 0, acc_y = 0, acc_z = 0;
-int16_t gyr_x = 0, gyr_y = 0, gyr_z = 0;
-int16_t mag_x = 0, mag_y = 0, mag_z = 0;
+int acc_x = 0, acc_y = 0, acc_z = 0;
+int gyr_x = 0, gyr_y = 0, gyr_z = 0;
+int mag_x = 0, mag_y = 0, mag_z = 0;
 
 float total_angle_x = 0; // roll
 float total_angle_y = 0; // pitch
@@ -35,7 +36,7 @@ float declination_angle = 2; // depends on location
 float rad_to_deg = 180 / 3.141592654f;
 
 /* PID */
-float angle_x_setpoint = 0; 
+float angle_x_setpoint = 0;
 float angle_y_setpoint = 0;
 float angle_z_setpoint = 0;
 
@@ -77,11 +78,33 @@ float pid_y = 0;
 float pid_z = 0;
 float pid_alt = 0;
 
+void initController()
+{
+  //Configure ESC's
+  analogWriteResolution(PWM_RES);         // 12 bit (0 - 4096)
+  analogWriteFrequency(MOTOR1, PWM_FREQ); // FTM0 timer, pin 5, 6
+  analogWriteFrequency(MOTOR5, PWM_FREQ); // FTM1 timer, pin 4
+  analogWriteFrequency(MOTOR2, PWM_FREQ); // FTM3 timer, pin 7, 8 ,14
+
+  pinMode(MOTOR1, OUTPUT);
+  pinMode(MOTOR2, OUTPUT);
+  pinMode(MOTOR3, OUTPUT);
+  pinMode(MOTOR4, OUTPUT);
+  pinMode(MOTOR5, OUTPUT);
+  pinMode(MOTOR6, OUTPUT);
+  analogWrite(MOTOR1, THROTTLE_MIN);
+  analogWrite(MOTOR2, THROTTLE_MIN);
+  analogWrite(MOTOR3, THROTTLE_MIN);
+  analogWrite(MOTOR4, THROTTLE_MIN);
+  analogWrite(MOTOR5, THROTTLE_MIN);
+  analogWrite(MOTOR6, THROTTLE_MIN);
+}
+
 void getTotalAngles()
 {
   updateImu();
-  updateMagnetoMeter();
-  
+  //updateMagnetoMeter();
+
   // complementary filters
   float acc_angle_x = atan(-1 * (acc_x / 16384.0) / sqrt(pow((acc_y / 16384.0), 2) + pow((acc_z / 16384.0), 2))) * rad_to_deg;
   float acc_angle_y = atan((acc_y / 16384.0) / sqrt(pow((acc_x / 16384.0), 2) + pow((acc_z / 16384.0), 2))) * rad_to_deg;
@@ -100,7 +123,7 @@ void getTotalAngles()
 
   float mag_x_hor = mag_x * cos(mag_angle_y) + mag_y * sin(mag_angle_x) * sin(mag_angle_y) - mag_z * cos(mag_angle_x) * sin(mag_angle_y);
   float mag_y_hor = mag_y * cos(mag_angle_x) + mag_z * sin(mag_angle_x);
-  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle; 
+  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle;
 
   Serial.print("  X:");
   Serial.print(total_angle_x, 2);
@@ -110,28 +133,6 @@ void getTotalAngles()
 
   //Serial.print("  Z:");
   //Serial.print(total_angle_z, 2);
-}
-
-void initController()
-{
-  //Configure ESC's
-  analogWriteResolution(16);              // 16 bit (0 - 65535)
-  analogWriteFrequency(MOTOR1, PWM_FREQ); // FTM0 timer, pin 5, 6
-  analogWriteFrequency(MOTOR5, PWM_FREQ); // FTM1 timer, pin 4
-  analogWriteFrequency(MOTOR2, PWM_FREQ); // FTM3 timer, pin 7, 8 ,14
-
-  pinMode(MOTOR1, OUTPUT);
-  pinMode(MOTOR2, OUTPUT);
-  pinMode(MOTOR3, OUTPUT);
-  pinMode(MOTOR4, OUTPUT);
-  pinMode(MOTOR5, OUTPUT);
-  pinMode(MOTOR6, OUTPUT);
-  analogWrite(MOTOR1, THROTTLE_MIN);
-  analogWrite(MOTOR2, THROTTLE_MIN);
-  analogWrite(MOTOR3, THROTTLE_MIN);
-  analogWrite(MOTOR4, THROTTLE_MIN);
-  analogWrite(MOTOR5, THROTTLE_MIN);
-  analogWrite(MOTOR6, THROTTLE_MIN);
 }
 
 void correct_pitch(int pid_input = 0)
@@ -203,7 +204,7 @@ void compute_pid()
   pid_alt = p_term_alt + i_term_alt + d_term_alt;
 
   pid_alt = constrain(pid_alt, -steer_diff, steer_diff); // throttle
-  pid_x = constrain(pid_x, -steer_diff, steer_diff);
+  //pid_x = constrain(pid_x, -steer_diff, steer_diff);
 
   prev_error_x = error_x;
   prev_error_y = error_y;
@@ -243,7 +244,6 @@ void mainControl()
   Serial.print(i_gain, 5);
   Serial.print((String) "   gain d " + d_gain);
   Serial.print((String) "   setp " + angle_x_setpoint);
-  //Serial.print((String) "   PIDy: " + pid_y);
 
   correct_roll(pid_x);
   correct_pitch(pid_y);
@@ -254,17 +254,6 @@ void mainControl()
   if (throttle < (THROTTLE_MIN + 50))
   {
     left_front = left_side = left_rear = right_front = right_side = right_rear = 0;
-    pid_x = 0;
-    pid_y = 0;
-    pid_z = 0;
-  }
-
-  if (throttle <= THROTTLE_MIN)
-  {
-    left_front = left_side = left_rear = right_front = right_side = right_rear = THROTTLE_MIN;
-    pid_x = 0;
-    pid_y = 0;
-    pid_z = 0;
   }
 
   left_front = constrain(left_front, THROTTLE_MIN, THROTTLE_MAX);

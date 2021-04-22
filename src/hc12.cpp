@@ -348,14 +348,16 @@ void HC12::sendData(enum HC12::ACK ack)
 
 HC12::rc_ack_t HC12::readData()
 {
+  ACK ack;
+  
   if (millis() - since_last_packet > 500)
   {
     Serial.println("No Connection!");
     rc_throttle = 0;
+    since_last_packet = millis();
   }
 
-  ACK ack;
-  if (hc12_uart.available() > 0 && hc12_uart.peek() != 0)
+  if (hc12_uart.available() > 0)
   {
     //Serial.print("\n\nbytes arrived: ");
 
@@ -370,8 +372,6 @@ HC12::rc_ack_t HC12::readData()
       //Serial.print(packet[i]);
       //Serial.print(" ");
     }
-
-    //Serial.println("");
 
     if (packet[0] == TRANSMITTER_CMD)
     {
@@ -391,7 +391,7 @@ HC12::rc_ack_t HC12::readData()
             rc_roll = packet[6];
             //rc_pitch = packet[10] << 8 | packet[9];
             //Serial.print((String) "AY: " + rc_throttle + "  AX: " + rc_yaw + "  BY: " + rc_pitch + "  BX: " + rc_roll);
-            Serial.println(" ");
+            //Serial.println(" ");
           }
           if (packet[2] >= 8) // data length
           {

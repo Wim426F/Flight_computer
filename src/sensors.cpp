@@ -35,7 +35,8 @@ float gps_gnd_speed = 0;
 void initAllSensors()
 {
     /* GPS */
-    gps_uart.begin(460800);
+    /*
+    gps_uart.begin(9600);
     if (gps.begin(gps_uart) == true)
     {
         Serial.println("GPS connected at baudrate 460800");
@@ -46,7 +47,8 @@ void initAllSensors()
         if (gps.begin(gps_uart) == true)
         {
             Serial.println("GPS: connected at 9600 baud, switching to 460800");
-            gps.setSerialRate(460800);
+            gps.setSerialRate(9600);
+            gps_uart.begin(9600);
             delay(100);
         }
     }
@@ -54,7 +56,7 @@ void initAllSensors()
     gps.setUART1Output(COM_TYPE_UBX); //Set the UART port to output UBX only
     gps.setI2COutput(COM_TYPE_UBX);   //Set the I2C port to output UBX only (turn off NMEA noise)
     gps.saveConfiguration();          //Save the current settings to flash and BBR
-
+*/
 #ifdef TARGET_TEENSY35
     /* Pressure Sensor  */
     bmp.begin(0x76);

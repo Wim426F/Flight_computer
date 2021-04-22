@@ -93,15 +93,17 @@ void setup()
   pinMode(LED_GREEN, OUTPUT);
   pinMode(HC12_CMD_MODE, OUTPUT);
 
-  Serial.begin(SERIAL_BAUDRATE);
-  hc12_uart.begin(rc_baudrate[last_baud]); // begin at speed last saved in eeprom
+  digitalWrite(HC12_CMD_MODE, HIGH); // don't enter command mode
 
+  Serial.begin(SERIAL_BAUDRATE);
+  delay(1000);
+  hc12_uart.begin(rc_baudrate[last_baud]); // begin at speed last saved in eeprom
   //Serial.println((String) "hc12_uart started at baud: " + rc_baudrate[last_baud] + "\n");
   //Serial.print("Setting baudrate: ");
   //radio.setBaudRate(0); // 3 = 9600bps
   ///Serial.print("Setting Mode: ");
   //radio.setTransmitMode(3);
-  //radio.getVersion();
+  //hc12.getVersion();
 
   initAllSensors();
   initController();
@@ -211,14 +213,15 @@ void loop()
 
     if (param == 'a')
     {
-      String param = Serial.readString();
+      String parameter = Serial.readString();
+      Serial.print(parameter);
       digitalWrite(HC12_CMD_MODE, LOW);
       delay(40);
-      hc12_uart.print(param);
+      hc12_uart.print(parameter);
       delay(100);
       digitalWrite(HC12_CMD_MODE, HIGH);
       Serial.println(hc12_uart.readString());
-      delay(1000);
+      delay(3000);
     }
     while (hc12_uart.available() && hc12_uart.read())
       ; // empty buffer again
@@ -251,13 +254,13 @@ void loop()
     BlHeli.HostInterface(); // this is a loop
   }
 
-  hc12.readData();
 #endif
 
   time = micros();
   long int loop_time = 1000000 / (time - prev_time);
   prev_time = time;
 
+  hc12.readData();
   mainControl();
 
   // 1 ms
@@ -268,13 +271,10 @@ void loop()
   // 100 ms
   if (since_int2 > interval2)
   {
-    /*
-      Serial.print("  tota-off: ");
-      Serial.print(total_angle_x - offset_gyr_x);
-      
-      Serial.print((String) "  Cycles/s: " + loop_time);
-      Serial.print("  CPU temp: ");
-      Serial.println(InternalTemperature.readTemperatureC(), 2); */
+    
+    //Serial.print((String) "  Cycles/s: " + loop_time);
+    //Serial.print("  CPU temp: ");
+    //Serial.println(InternalTemperature.readTemperatureC(), 2);
     since_int2 -= interval2;
   }
 
