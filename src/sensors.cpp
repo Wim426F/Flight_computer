@@ -30,6 +30,7 @@ float gps_longitude = 0;
 float gps_latitude = 0;
 float gps_altitude = 0;
 float gps_heading = 0;
+float gps_gnd_speed = 0;
 
 void initAllSensors()
 {
@@ -44,7 +45,7 @@ void initAllSensors()
         gps_uart.begin(9600);
         if (gps.begin(gps_uart) == true)
         {
-            Serial.println("GPS: connected at 9600 baud, switching to 38400");
+            Serial.println("GPS: connected at 9600 baud, switching to 460800");
             gps.setSerialRate(460800);
             delay(100);
         }
@@ -66,7 +67,11 @@ void initAllSensors()
     gndlvl_airpressure = bmp.readPressure();
 
     /*  Motion Sensor  */
-    mpu.initialize();
+    mpu.setClockSource(MPU6050_CLOCK_PLL_XGYRO);
+    mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_500); // 500 dps
+    mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2); // 2 g
+    mpu.setSleepEnabled(false);
+    
     mpu.setXAccelOffset(-2015);
     mpu.setYAccelOffset(-1741);
     mpu.setZAccelOffset(1843);
@@ -140,23 +145,24 @@ void updateGps()
 {
     gps_latitude = gps.getLatitude();
     Serial.print(F("Lat: "));
-    Serial.print(latitude);
+    Serial.print(gps_latitude);
 
     gps_longitude = gps.getLongitude();
     Serial.print(F(" Long: "));
-    Serial.print(longitude);
+    Serial.print(gps_longitude);
     Serial.print(F(" (degrees * 10^-7)"));
 
     gps_altitude = gps.getAltitude();
     Serial.print(F(" Alt: "));
-    Serial.print(altitude);
+    Serial.print(gps_altitude);
     Serial.print(F(" (mm)"));
 
     gps_heading = gps.getHeading();
+    gps_gnd_speed = gps.getGroundSpeed();
 
-    byte SIV = myGPS.getSIV();
+    gps_siv = gps.getSIV();
     Serial.print(F(" SIV: "));
-    Serial.print(SIV);
+    Serial.print(gps_siv);
 }
 
 void updateImu()
