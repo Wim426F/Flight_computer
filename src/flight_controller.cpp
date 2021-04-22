@@ -4,8 +4,8 @@
 #include <globals.h>
 #include <sensors.h>
 
-const float PWM_FREQ = 50;
-const uint16_t THROTTLE_MIN = 2800, THROTTLE_MAX = 4800;
+const float PWM_FREQ = 12000; // oneshot42: 12000Hz, servo: 50Hz, oneshot125: 4000Hz
+const uint16_t THROTTLE_MIN = 3300, THROTTLE_MAX = 6600; // min = 5% = 3300, max = 10% = 6600
 
 bool hold_position = false;
 float hold_altitude = 0;
@@ -19,11 +19,8 @@ uint16_t right_front = 0; // M1: CCW
 uint16_t right_side = 0;  // M6: CW
 uint16_t right_rear = 0;  // M5: CCW
 
-int yaw = 0;
-int pitch = 0;
-int roll = 0;
-int throttle = 0;
-int steer_diff = 0; // only allow 50% of throttle to be shifted
+int yaw = 0, pitch = 0, roll = 0, throttle = 0;
+int steer_diff = 0; // only allow --% of throttle to be shifted
 
 int16_t acc_x = 0, acc_y = 0, acc_z = 0;
 int16_t gyr_x = 0, gyr_y = 0, gyr_z = 0;
@@ -40,20 +37,15 @@ float rad_to_deg = 180 / 3.141592654f;
 /* PID */
 float angle_x_setpoint = 0; 
 float angle_y_setpoint = 0;
-float angle_z_setpoint = 0; // desired rotation speed on z axis
+float angle_z_setpoint = 0;
 
 float max_angle_x = 40.0f;
 float max_angle_y = 40.0f;
-float max_yaw_speed_z = 180.0f; // dps
+float max_yaw_speed_z = 250.0f; // dps
 
 float p_gain = 3.5f;
 float i_gain = 0.0005f;
 float d_gain = 1.27f;
-
-float pid_x = 0;
-float pid_y = 0;
-float pid_z = 0;
-float pid_alt = 0;
 
 float error_x = 0;
 float error_y = 0;
@@ -65,44 +57,50 @@ float prev_error_y = 0;
 float prev_error_z = 0;
 float prev_error_alt = 0;
 
-float proportional_x = 0;
-float proportional_y = 0;
-float proportional_z = 0;
-float proportional_alt = 0;
+float p_term_x = 0;
+float p_term_y = 0;
+float p_term_z = 0;
+float p_term_alt = 0;
 
-float integral_x = 0;
-float integral_y = 0;
-float integral_z = 0;
-float integral_alt = 0;
+float i_term_x = 0;
+float i_term_y = 0;
+float i_term_z = 0;
+float i_term_alt = 0;
 
-float derivative_x = 0;
-float derivative_y = 0;
-float derivative_z = 0;
-float derivative_alt = 0;
+float d_term_x = 0;
+float d_term_y = 0;
+float d_term_z = 0;
+float d_term_alt = 0;
+
+float pid_x = 0;
+float pid_y = 0;
+float pid_z = 0;
+float pid_alt = 0;
 
 void getTotalAngles()
 {
   updateImu();
+  updateMagnetoMeter();
+  
   // complementary filters
   float acc_angle_x = atan(-1 * (acc_x / 16384.0) / sqrt(pow((acc_y / 16384.0), 2) + pow((acc_z / 16384.0), 2))) * rad_to_deg;
   float acc_angle_y = atan((acc_y / 16384.0) / sqrt(pow((acc_x / 16384.0), 2) + pow((acc_z / 16384.0), 2))) * rad_to_deg;
 
-  float gyr_angle_x = (gyr_x / 131) * elapsed_time;
-  float gyr_angle_y = (gyr_y / 131) * elapsed_time;
-  float gyr_angle_z = (gyr_z / 131) * elapsed_time;
+  float gyr_angle_x = (gyr_x / 65.5) * elapsed_time;
+  float gyr_angle_y = (gyr_y / 65.5) * elapsed_time;
+  float gyr_angle_z = (gyr_z / 65.5) * elapsed_time;
 
   total_angle_x = 0.98 * (total_angle_x + gyr_angle_x) + 0.02 * acc_angle_x;
   total_angle_y = 0.98 * (total_angle_y + gyr_angle_y) + 0.02 * acc_angle_y;
   total_angle_z = gyr_angle_z;
 
-  /*
   float mag_angle_x = total_angle_x;                       // roll
   float mag_angle_y = total_angle_y - (total_angle_y * 2); // mag and gyr axis are opposed
   float mag_angle_z = gyr_angle_z - (gyr_angle_z * 2);
 
   float mag_x_hor = mag_x * cos(mag_angle_y) + mag_y * sin(mag_angle_x) * sin(mag_angle_y) - mag_z * cos(mag_angle_x) * sin(mag_angle_y);
   float mag_y_hor = mag_y * cos(mag_angle_x) + mag_z * sin(mag_angle_x);
-  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle; */
+  mag_heading = (atan2(mag_x_hor, mag_y_hor) * rad_to_deg) + declination_angle; 
 
   Serial.print("  X:");
   Serial.print(total_angle_x, 2);
@@ -175,30 +173,34 @@ void correct_yaw(int pid_input = 0)
 
 void compute_pid()
 {
+  /* Error from setpoint */
   error_x = total_angle_x - angle_x_setpoint;
   error_y = total_angle_y - angle_x_setpoint;
   error_z = total_angle_z - angle_x_setpoint;
   error_alt = relative_altitude - hold_altitude;
 
-  proportional_x = error_x * p_gain;
-  proportional_y = error_y * p_gain;
-  proportional_z = error_z * p_gain;
-  proportional_alt = error_alt * p_gain;
+  /* Proportional correction */
+  p_term_x = error_x * p_gain;
+  p_term_y = error_y * p_gain;
+  p_term_z = error_z * p_gain;
+  p_term_alt = error_alt * p_gain;
 
-  integral_x += error_x * i_gain;
-  integral_y += error_y * i_gain;
-  integral_z += error_z * i_gain;
-  integral_alt += error_alt * i_gain;
+  /* Integral correction */
+  i_term_x += error_x * i_gain;
+  i_term_y += error_y * i_gain;
+  i_term_z += error_z * i_gain;
+  i_term_alt += error_alt * i_gain;
 
-  derivative_x = ((error_x - prev_error_x) / elapsed_time) * d_gain;
-  derivative_y = ((error_y - prev_error_y) / elapsed_time) * d_gain;
-  derivative_z = ((error_z - prev_error_z) / elapsed_time) * d_gain;
-  derivative_alt = ((error_alt - prev_error_alt) / elapsed_time) * d_gain;
+  /* Derivative correction */
+  d_term_x = ((error_x - prev_error_x) / elapsed_time) * d_gain;
+  d_term_y = ((error_y - prev_error_y) / elapsed_time) * d_gain;
+  d_term_z = ((error_z - prev_error_z) / elapsed_time) * d_gain;
+  d_term_alt = ((error_alt - prev_error_alt) / elapsed_time) * d_gain;
 
-  pid_x = proportional_x + integral_x + derivative_x;
-  pid_y = proportional_y + integral_y + derivative_y;
-  pid_z = proportional_z + integral_z + derivative_z;
-  pid_alt = proportional_alt + integral_alt + derivative_alt;
+  pid_x = p_term_x + i_term_x + d_term_x;
+  pid_y = p_term_y + i_term_y + d_term_y;
+  pid_z = p_term_z + i_term_z + d_term_z;
+  pid_alt = p_term_alt + i_term_alt + d_term_alt;
 
   pid_alt = constrain(pid_alt, -steer_diff, steer_diff); // throttle
   pid_x = constrain(pid_x, -steer_diff, steer_diff);
@@ -233,9 +235,9 @@ void mainControl()
 
   compute_pid();
 
-  Serial.print((String) "   Px: " + proportional_x);
-  Serial.print((String) "   Ix: " + integral_x);
-  Serial.print((String) "   Dx: " + derivative_x);
+  Serial.print((String) "   Px: " + p_term_x);
+  Serial.print((String) "   Ix: " + i_term_x);
+  Serial.print((String) "   Dx: " + d_term_x);
   Serial.print((String) "   gain p " + p_gain);
   Serial.print((String) "   gain i ");
   Serial.print(i_gain, 5);
