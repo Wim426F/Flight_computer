@@ -27,14 +27,14 @@ HC12 hc12;
 BlHeli6Way BlHeli;
 
 /* Transmitter Variables */
-uint16_t rc_throttle = 0;
-uint16_t rc_yaw = 0;
-uint16_t rc_pitch = 0;
-uint16_t rc_roll = 0;
-uint8_t rc_param1 = 0;
-uint8_t rc_param2 = 0;
-uint8_t rc_param3 = 0;
-uint8_t rc_param4 = 0;
+byte rc_throttle = 0;
+byte rc_yaw = 0;
+byte rc_pitch = 0;
+byte rc_roll = 0;
+byte rc_param1 = 0;
+byte rc_param2 = 0;
+byte rc_param3 = 0;
+byte rc_param4 = 0;
 
 const long interval1 = 4;
 const long interval2 = 10;

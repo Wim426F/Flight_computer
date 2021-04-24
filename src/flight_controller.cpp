@@ -20,12 +20,12 @@ uint16_t right_front = 0; // M1: CCW
 uint16_t right_side = 0;  // M6: CW
 uint16_t right_rear = 0;  // M5: CCW
 
-int yaw = 0, pitch = 0, roll = 0, throttle = 0;
+byte throttle = 0;
 int steer_diff = 0; // only allow --% of throttle to be shifted
 
-int acc_x = 0, acc_y = 0, acc_z = 0;
-int gyr_x = 0, gyr_y = 0, gyr_z = 0;
-int mag_x = 0, mag_y = 0, mag_z = 0;
+int16_t acc_x = 0, acc_y = 0, acc_z = 0;
+int16_t gyr_x = 0, gyr_y = 0, gyr_z = 0;
+int16_t mag_x = 0, mag_y = 0, mag_z = 0;
 
 float total_angle_x = 0; // roll
 float total_angle_y = 0; // pitch
@@ -45,7 +45,7 @@ float max_angle_y = 40.0f;
 float max_yaw_speed_z = 250.0f; // dps
 
 float p_gain = 3.5f;
-float i_gain = 0.0005f;
+float i_gain = 0.005f;
 float d_gain = 1.27f;
 
 float error_x = 0;
@@ -77,6 +77,11 @@ float pid_x = 0;
 float pid_y = 0;
 float pid_z = 0;
 float pid_alt = 0;
+
+float mapBtoF(byte x, byte in_min, byte in_max, float out_min, float out_max)
+{
+  return ((float)x - (float)in_min) * (out_max - out_min) / ((float)in_max - (float)in_min) + out_min;
+}
 
 void initController()
 {
@@ -159,7 +164,7 @@ void correct_roll(int pid_input = 0)
 
 void correct_yaw(int pid_input = 0)
 {
-  int correction = map(yaw, -1023, 1023, -steer_diff, steer_diff);
+  int correction = map(rc_yaw, 0, 255, -steer_diff, steer_diff);
   correction += pid_input;
 
   //Serial.println("   yaw+: " + (String)correction);
@@ -230,9 +235,9 @@ void mainControl()
 
   left_front = left_side = left_rear = right_front = right_side = right_rear = throttle;
 
-  angle_x_setpoint = map(roll, 0, 255, -max_angle_x, max_angle_x);
-  angle_y_setpoint = map(pitch, 0, 255, -max_angle_y, max_angle_y);
-  max_yaw_speed_z = map(yaw, 0, 255, -max_yaw_speed_z, max_yaw_speed_z);
+  angle_x_setpoint = mapBtoF((float)rc_roll, 0, 255, -max_angle_x, max_angle_x);
+  angle_y_setpoint = mapBtoF((float)rc_pitch, 0, 255, -max_angle_y, max_angle_y);
+  max_yaw_speed_z = mapBtoF((float)rc_yaw, 0, 255, -max_yaw_speed_z, max_yaw_speed_z);
 
   compute_pid();
 
@@ -241,9 +246,10 @@ void mainControl()
   Serial.print((String) "   Dx: " + d_term_x);
   Serial.print((String) "   gain p " + p_gain);
   Serial.print((String) "   gain i ");
-  Serial.print(i_gain, 5);
+  Serial.print(i_gain, 4);
   Serial.print((String) "   gain d " + d_gain);
-  Serial.print((String) "   setp " + angle_x_setpoint);
+  Serial.print((String) "   setp_x " + angle_x_setpoint);
+  Serial.print((String) "   setp_y " + angle_y_setpoint);
 
   correct_roll(pid_x);
   correct_pitch(pid_y);

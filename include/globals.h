@@ -78,14 +78,14 @@ extern HC12 hc12;
 extern double elapsed_time, current_time, previous_time;
 
 /* Transmitter Variables */
-extern uint16_t rc_throttle;
-extern uint16_t rc_yaw;
-extern uint16_t rc_pitch;
-extern uint16_t rc_roll;
-extern uint8_t rc_param1;
-extern uint8_t rc_param2;
-extern uint8_t rc_param3;
-extern uint8_t rc_param4;
+extern byte rc_throttle;
+extern byte rc_yaw;
+extern byte rc_pitch;
+extern byte rc_roll;
+extern byte rc_param1;
+extern byte rc_param2;
+extern byte rc_param3;
+extern byte rc_param4;
 
 extern uint16_t crc_xmodem(const uint8_t *data, uint16_t len);
 
